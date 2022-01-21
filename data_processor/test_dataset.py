@@ -29,7 +29,7 @@ class CommonTestDataset(Dataset):
         image_list_buf = open(image_list_file)
         line = image_list_buf.readline().strip()
         while line:
-            self.image_list.append(line)
+            self.image_list.append(line.split(' ')[0])
             line = image_list_buf.readline().strip()
         self.mean = 127.5
         self.std = 128.0

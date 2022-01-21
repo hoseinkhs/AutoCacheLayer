@@ -9,7 +9,7 @@ import math
 import multiprocessing
 import cv2
 import sys
-sys.path.append('/export/home/wangjun492/wj_armory/faceX-Zoo/face_sdk')
+sys.path.append('/home/amin/Projects/DL/FaceX-Zoo/face_sdk')
 from core.image_cropper.arcface_cropper.FaceRecImageCropper import FaceRecImageCropper
 from utils.lms_trans import lms106_2_lms25
 
@@ -37,8 +37,9 @@ def crop_facescrub(facescrub_root, facescrub_lms_file, target_folder):
         line = facescrub_lms_file_buf.readline().strip()
 
 if __name__ == '__main__':
-    facescrub_root = '/export2/wangjun492/face_database/facex-zoo/private_file/test_data/megaface/facescrub_mask'
-    facescrub_lms_file = '/export2/wangjun492/face_database/facex-zoo/share_file/test_data/megaface/facescrub_face_info.txt'
-    target_folder = '/export2/wangjun492/face_database/facex-zoo/private_file/test_data/megaface/face_crop_arcface/masked_facescrub_crop'
+    print(os.path.abspath(os.getcwd()))
+    facescrub_root = 'data/test/lfw/images'
+    facescrub_lms_file = 'data/test/lfw/img_list.txt'
+    target_folder = 'data/test/lfw/images_cropped'
 
     crop_facescrub(facescrub_root, facescrub_lms_file, target_folder)

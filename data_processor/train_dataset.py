@@ -14,6 +14,8 @@ from torch.utils.data import Dataset
 def transform(image):
     """ Transform a image by cv2.
     """
+    image = image.numpy()
+    image = np.moveaxis(image, 0, -1)
     img_size = image.shape[0]
     # random crop
     if random.random() > 0.5:
@@ -48,14 +50,28 @@ def transform(image):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, data_root, train_file, crop_eye=False):
+    def __init__(self, data_root, train_file, crop_eye=False, names_file = None, name_as_label=False):
+        self.names_list = []
+        if names_file is not None:
+            names_file_buf = open(names_file)
+            line = names_file_buf.readline().strip()
+            while line:
+                self.names_list.append(line)
+                line = names_file_buf.readline().strip()
         self.data_root = data_root
         self.train_list = []
         train_file_buf = open(train_file)
         line = train_file_buf.readline().strip()
         while line:
-            image_path, image_label = line.split(' ')
-            self.train_list.append((image_path, int(image_label)))
+            if name_as_label:
+                image_path = line.split(' ')[0]
+                image_name = image_path.split('/')[0]
+                if image_name in self.names_list:
+                    image_label = self.names_list.index(image_name)
+                    self.train_list.append((image_path, int(image_label)))
+            else:
+                image_path, image_label = line.split(' ')[:2]
+                self.train_list.append((image_path, int(image_label)))
             line = train_file_buf.readline().strip()
         self.crop_eye = crop_eye
     def __len__(self):

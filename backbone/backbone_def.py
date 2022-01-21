@@ -36,12 +36,16 @@ class BackboneFactory:
         print('backbone param:')
         print(self.backbone_param)
 
-    def get_backbone(self):
+    def get_backbone(self, cache_enabled=False, return_exits=False, cache_exits=[], cache_hits=[]):
         if self.backbone_type == 'MobileFaceNet':
             feat_dim = self.backbone_param['feat_dim'] # dimension of the output features, e.g. 512.
             out_h = self.backbone_param['out_h'] # height of the feature map before the final features.
             out_w = self.backbone_param['out_w'] # width of the feature map before the final features.
-            backbone = MobileFaceNet(feat_dim, out_h, out_w)
+            backbone = MobileFaceNet(feat_dim, out_h, out_w,
+                cache_enabled=cache_enabled,
+                return_exits=return_exits,
+                cache_exits=cache_exits,
+                cache_hits=cache_hits)
         elif self.backbone_type == 'ResNet':
             depth = self.backbone_param['depth'] # depth of the ResNet, e.g. 50, 100, 152.
             drop_ratio = self.backbone_param['drop_ratio'] # drop out ratio.

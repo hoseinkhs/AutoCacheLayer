@@ -1,0 +1,33 @@
+Dense2Layer_exit_1:
+    feat_dim: 50176
+    n_l1: 256
+    n_l2: 127
+Dense2Layer_exit_2:
+    feat_dim: 25088
+    n_l1: 256
+    n_l2: 127
+Dense2Layer_exit_3:
+    feat_dim: 6272
+    n_l1: 256
+    n_l2: 127
+
+# MatchingHead2_exit_1:
+#     embedding_size: 512
+#     out_h: 7
+#     out_w: 7
+#     feat_dim: 6272
+#     n_l1: 256
+#     n_l2: 127
+# MatchingHead2_exit_2:
+#     embedding_size: 512
+#     out_h: 7
+#     out_w: 7
+#     feat_dim: 6272
+#     n_l1: 256
+#     n_l2: 127
+# MatchingHead2_exit_3:
+#     feat_dim: 512
+#     out_h: 7
+#     out_w: 7
+#     n_l1: 256
+#     n_l2: 127
