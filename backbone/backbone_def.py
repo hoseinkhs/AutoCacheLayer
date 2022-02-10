@@ -65,7 +65,11 @@ class BackboneFactory:
             blocks_args, global_params = efficientnet(
                 width_coefficient=width, depth_coefficient=depth, 
                 dropout_rate=drop_ratio, image_size=image_size)
-            backbone = EfficientNet(out_h, out_w, feat_dim, blocks_args, global_params)
+            backbone = EfficientNet(out_h, out_w, feat_dim, blocks_args, global_params,
+                cache_enabled=cache_enabled,
+                return_exits=return_exits,
+                cache_exits=cache_exits,
+                cache_hits=cache_hits)
         elif self.backbone_type == 'HRNet':
             config = {}
             config['MODEL'] = self.backbone_param

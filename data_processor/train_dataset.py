@@ -50,7 +50,7 @@ def transform(image):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, data_root, train_file, crop_eye=False, names_file = None, name_as_label=False):
+    def __init__(self, data_root, train_file, crop_eye=False, names_file = None, name_as_label=False, allow_unknown=False):
         self.names_list = []
         if names_file is not None:
             names_file_buf = open(names_file)
@@ -66,8 +66,8 @@ class ImageDataset(Dataset):
             if name_as_label:
                 image_path = line.split(' ')[0]
                 image_name = image_path.split('/')[0]
-                if image_name in self.names_list:
-                    image_label = self.names_list.index(image_name)
+                if image_name in self.names_list or allow_unknown:
+                    image_label = self.names_list.index(image_name) if image_name in self.names_list else -1
                     self.train_list.append((image_path, int(image_label)))
             else:
                 image_path, image_label = line.split(' ')[:2]

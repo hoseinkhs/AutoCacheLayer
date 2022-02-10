@@ -10,6 +10,7 @@ import yaml
 from classifier.MatchingHead import MatchingHead2
 sys.path.append('../../')
 from classifier.Dense2Layer import Dense2Layer, Dense2LayerSoftmax
+from classifier.ConvDense import ConvDense
 
 class ClassifierFactory:
     """Factory to produce classifier according the classifier_conf.yaml.
@@ -43,5 +44,12 @@ class ClassifierFactory:
             n_l1 = self.classifier_param['n_l1'] # height of the feature map before the final features.
             n_l2 = self.classifier_param['n_l2'] # width of the feature map before the final features.
             classifier = MatchingHead2(feat_dim, out_h, out_w, n_l1, n_l2)
-        
+        elif self.classifier_type[:9] == 'ConvDense':
+            k_l1 = self.classifier_param['k_l1']
+            in_ch_l1 = self.classifier_param['in_ch_l1']
+            out_ch_l1 = self.classifier_param['out_ch_l1']
+            s_l1 = self.classifier_param['s_l1']
+            in_l2 = self.classifier_param['in_l2']
+            out_l2 = self.classifier_param['out_l2']
+            classifier = ConvDense(k_l1, in_ch_l1, out_ch_l1, s_l1, in_l2, out_l2)
         return classifier

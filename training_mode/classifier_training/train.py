@@ -86,13 +86,15 @@ def train_one_epoch(data_loader, model, optimizer, criterion, cur_epoch, loss_me
                 'epoch': cur_epoch,
                 'batch_id': batch_idx
             }
-            torch.save(state, os.path.join(conf.out_dir, saved_name))
-            logger.info('Save checkpoint %s to disk.' % saved_name)
+            save_path = os.path.join(conf.out_dir, saved_name)
+            torch.save(state, save_path)
+            logger.info('Save checkpoint %s to disk.' % save_path)
     saved_name = 'Epoch_%d.pt' % cur_epoch
     state = {'state_dict': model.module.classifier.state_dict(), 
              'epoch': cur_epoch, 'batch_id': batch_idx}
-    torch.save(state, os.path.join(conf.out_dir, saved_name))
-    logger.info('Save checkpoint %s to disk...' % saved_name)
+    saved_path = os.path.join(conf.out_dir, saved_name)
+    torch.save(state, saved_path)
+    logger.info('Save checkpoint %s to disk!' % saved_path)
 
 def train(conf):
     """Total training procedure.

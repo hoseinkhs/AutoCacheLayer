@@ -1,15 +1,55 @@
+### Dense2Layer exits for EfficientNet
+Dense2Layer_exit_0:
+    feat_dim: 75264
+    n_l1: 150
+    n_l2: 127
 Dense2Layer_exit_1:
-    feat_dim: 50176
+    feat_dim: 31360
     n_l1: 256
     n_l2: 127
 Dense2Layer_exit_2:
-    feat_dim: 25088
+    feat_dim: 15680
     n_l1: 256
     n_l2: 127
-Dense2Layer_exit_3:
-    feat_dim: 6272
-    n_l1: 256
-    n_l2: 127
+
+###   ConvDense Exits for EfficientNet
+ConvDense_exit_0:
+    k_l1: 5
+    in_ch_l1: 24
+    out_ch_l1: 3
+    s_l1: 1
+    in_l2: 8112
+    out_l2: 127
+
+ConvDense_exit_1:
+    k_l1: 3
+    in_ch_l1: 40
+    out_ch_l1: 20
+    s_l1: 1
+    in_l2: 13520
+    out_l2: 127
+
+ConvDense_exit_2:
+    k_l1: 3
+    in_ch_l1: 80
+    out_ch_l1: 40
+    s_l1: 1
+    in_l2: 5760
+    out_l2: 127
+
+# Exit conf for MobileFaceNet
+# Dense2Layer_exit_0:
+#     feat_dim: 50176
+#     n_l1: 256
+#     n_l2: 127
+# Dense2Layer_exit_1:
+#     feat_dim: 25088
+#     n_l1: 256
+#     n_l2: 127
+# Dense2Layer_exit_2:
+#     feat_dim: 6272
+#     n_l1: 256
+#     n_l2: 127
 
 # MatchingHead2_exit_1:
 #     embedding_size: 512

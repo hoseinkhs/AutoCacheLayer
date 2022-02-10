@@ -68,8 +68,6 @@ class Residual(Module):
 class MobileFaceNet(Module):
     def __init__(self, embedding_size, out_h, out_w, cache_enabled=False, return_exits=False, cache_exits = [], cache_hits = []):
         super(MobileFaceNet, self).__init__()
-        self.return_exits = return_exits
-        self.cache_enabled = cache_enabled
         self.conv1 = Conv_block(3, 64, kernel=(3, 3), stride=(2, 2), padding=(1, 1))
         self.conv2_dw = Conv_block(64, 64, kernel=(3, 3), stride=(1, 1), padding=(1, 1), groups=64)
         self.conv_23 = Depth_Wise(64, 64, kernel=(3, 3), stride=(2, 2), padding=(1, 1), groups=128)
@@ -88,10 +86,13 @@ class MobileFaceNet(Module):
         self.conv_6_flatten = Flatten()
         self.linear = Linear(512, embedding_size, bias=False)
         self.bn = BatchNorm1d(embedding_size)
+
         self.cache_exits = ModuleList(cache_exits)
         self.cache_hits = cache_hits
         self.shrink_on_hit = True
-        
+        self.cache_threshold = None
+        self.cache_enabled = cache_enabled
+        self.return_exits = return_exits
     
     def forward(self, x):
         results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(x.shape[0])], "outputs": [], "exits": []}
@@ -102,7 +103,7 @@ class MobileFaceNet(Module):
             if not cache_active:
                 return out, idxs, False
             cache = self.cache_exits[exit_idx](out)
-            hit = self.cache_hits[exit_idx](cache)
+            hit = self.cache_hits[exit_idx](cache, self.cache_threshold)
             results["hit_times"].append(time.time())
             results["outputs"].append(cache)
             results["hits"].append(hit)
@@ -149,9 +150,11 @@ class MobileFaceNet(Module):
         
         return out, results
 
-    def config_cache(self, active, shrink=None):
+    def config_cache(self, active, shrink=None, threshold=None):
         self.cache_enabled = active
         self.return_exits = not active
         if shrink is not None:
             self.shrink_on_hit = shrink
+        if threshold is not None:
+            self.cache_threshold = threshold
 

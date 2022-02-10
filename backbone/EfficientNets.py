@@ -15,7 +15,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils import model_zoo
-from torch.nn import Sequential, BatchNorm1d, BatchNorm2d, Dropout, Module, Linear
+from torch.nn import Sequential, BatchNorm1d, BatchNorm2d, Dropout, Module, Linear, ModuleList
+import time
 
 
 ################################################################################
@@ -771,7 +772,7 @@ class EfficientNet(nn.Module):
         >>> outputs = model(inputs)
     """
 
-    def __init__(self, out_h, out_w, feat_dim, blocks_args=None, global_params=None):
+    def __init__(self, out_h, out_w, feat_dim, blocks_args=None, global_params=None, cache_enabled=False, return_exits=False, cache_exits = [], cache_hits = []):
         super().__init__()
         assert isinstance(blocks_args, list), 'blocks_args should be a list'
         assert len(blocks_args) > 0, 'block args must be greater than 0'
@@ -835,7 +836,13 @@ class EfficientNet(nn.Module):
             Linear(1280 * out_h * out_w, feat_dim), 
             #Linear(512 * out_h * out_w, feat_dim), 
             BatchNorm1d(feat_dim))
-
+        self.cache_exits = ModuleList(cache_exits)
+        self.cache_hits = cache_hits
+        self.shrink_on_hit = True
+        self.cache_threshold = None
+        self.cache_enabled = cache_enabled
+        self.return_exits = return_exits
+        self.exit_layers = [1, 3, 5]
 
     def set_swish(self, memory_efficient=True):
         """Sets swish function as memory efficient (for training) or standard (for export).
@@ -902,6 +909,25 @@ class EfficientNet(nn.Module):
             Output of the final convolution
             layer in the efficientnet model.
         """
+        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(inputs.shape[0])], "outputs": [], "exits": []}
+        idxs = torch.arange(0, inputs.shape[0])
+        cache_active = self.cache_enabled and not self.return_exits
+
+        def process_exit(out, idxs, exit_idx):
+            if not cache_active:
+                return out, idxs, False
+            cache = self.cache_exits[exit_idx](out)
+            hit = self.cache_hits[exit_idx](cache, self.cache_threshold)
+            results["hit_times"].append(time.time())
+            results["outputs"].append(cache)
+            results["hits"].append(hit)
+            if self.shrink_on_hit: 
+                no_hits = torch.logical_not(hit)
+                idxs = idxs[no_hits]
+                out = out[no_hits]
+            results["idxs"].append(idxs)
+            return out, idxs, len(idxs) == 0
+
         # Stem
         x = self._swish(self._bn0(self._conv_stem(inputs)))
         # Blocks
@@ -910,11 +936,18 @@ class EfficientNet(nn.Module):
             if drop_connect_rate:
                 drop_connect_rate *= float(idx) / len(self._blocks) # scale drop connect_rate
             x = block(x, drop_connect_rate=drop_connect_rate)
-
+            if idx in self.exit_layers:
+                if self.return_exits:
+                    results["exits"].append(x)
+                if cache_active:
+                    x, idxs, should_exit = process_exit(x, idxs, self.exit_layers.index(idx))
+                    if should_exit:
+                        return x, results
+        results["idxs"].append(idxs)
         # Head
         x = self._swish(self._bn1(self._conv_head(x)))
 
-        return x
+        return x, results
 
     def forward(self, inputs):
         """EfficientNet's forward function.
@@ -927,7 +960,7 @@ class EfficientNet(nn.Module):
             Output of this model after processing.
         """
         # Convolution layers
-        x = self.extract_features(inputs)
+        x, results = self.extract_features(inputs)
         '''
         # Pooling and final linear layer
         x = self._avg_pooling(x)
@@ -936,8 +969,19 @@ class EfficientNet(nn.Module):
             x = self._dropout(x)
             #x = self._fc(x)
         '''
-        x = self.output_layer(x)
-        return x
+        if x.shape[0]:
+            x = self.output_layer(x)
+        return x, results
+
+
+    def config_cache(self, active, shrink=None, threshold=None):
+        self.cache_enabled = active
+        self.return_exits = not active
+        if shrink is not None:
+            self.shrink_on_hit = shrink
+        if threshold is not None:
+            self.cache_threshold = threshold
+
 
     @classmethod
     def from_name(cls, model_name, in_channels=3, **override_params):
