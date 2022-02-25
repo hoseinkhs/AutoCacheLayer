@@ -20,7 +20,7 @@ import time
 import pandas as pd
 sys.path.append('../../')
 from utils.AverageMeter import AverageMeter
-from data_processor.train_dataset import ImageDataset, transform as aug_tf
+from data_processor.train_dataset import ImageDataset, PlaceDataset, transform as aug_tf
 from backbone.backbone_def import BackboneFactory
 from classifier.classifier_def import ClassifierFactory
 from test_protocol.utils.model_loader import ClassifierModelLoader, ModelLoader
@@ -28,41 +28,27 @@ logger.basicConfig(level=logger.INFO,
                    format='%(levelname)s %(asctime)s %(filename)s: %(lineno)d] %(message)s',
                    datefmt='%Y-%m-%d %H:%M:%S')
 
-class FaceModel(torch.nn.Module):
-    """Define a classification face model which contains a backbone and a classifier.
+class PlaceModel(torch.nn.Module):
+    """Define a classification face model which contains a backbone.
     
     Attributes:
         backbone(object): the backbone of face model.
-        classifier(object): the classifier of face model.
     """
-    def __init__(self, backbone_model, classifier_model):
+    def __init__(self, backbone_model):
         """Init face model by backbone factorcy and classifier factory.
         
         Args:
             backbone_factory(object): produce a backbone according to config files.
-            classifier_factory(object): produce a classifier according to config files.
         """
-        super(FaceModel, self).__init__()
+        super(PlaceModel, self).__init__()
         self.backbone = backbone_model
-        self.classifier = classifier_model
         for param in self.backbone.parameters():
-            param.requires_grad = False
-        for param in self.classifier.parameters():
             param.requires_grad = False
 
     def forward(self, data, ):
         feat, results = self.backbone.forward(data)
-        if feat.shape[0]:
-            classification = self.classifier.forward(feat)
-            results["outputs"].append(classification)
-            results["hits"].append(torch.ones(classification.shape[0]))
-            tt = time.time()
-            results["hit_times"].append(tt)
-            results["end_time"] = tt
-            return classification, results
-        else:
-            results["end_time"] = time.time()
-            return feat, results
+        results["end_time"] = time.time()
+        return feat, results
         
 
 def get_lr(optimizer):
@@ -121,12 +107,6 @@ def is_confident(x, threshold):
     mx, _ = torch.max(x_exp, dim=1)
     return torch.gt(mx, threshold)
 
-def distillation(y, teacher_scores, labels, T=4, alpha=0):
-    p = F.log_softmax(y/T, dim=1)
-    q = F.softmax(teacher_scores/T, dim=1)
-    l_kl = F.kl_div(p, q, size_average=False) * (T**2) / y.shape[0]
-    l_ce = F.cross_entropy(y, labels)
-    return l_kl * alpha + l_ce * (1. - alpha)
 
 
 def train(conf):
@@ -134,9 +114,10 @@ def train(conf):
     """
     now = datetime.now()
     dt_string = now.strftime("%Y-%m-%d-%H:%M:%S")
-    train_data_loader = DataLoader(ImageDataset(conf.data_root, conf.train_file, names_file=conf.names_file, name_as_label=True), 
+    train_data = PlaceDataset(conf.data_root, conf.train_file, conf.names_file)
+    train_data_loader = DataLoader(train_data, 
                              conf.batch_size, True, num_workers = 0)
-    test_dataset = ImageDataset(conf.data_root, conf.test_file, names_file=conf.names_file, name_as_label=True)
+    test_dataset = PlaceDataset(conf.data_root, conf.test_file, conf.names_file)
     test_data_loader = DataLoader(test_dataset, 
                              conf.batch_size, True, num_workers = 0)
     conf.train_device = torch.device(conf.train_device)
@@ -146,13 +127,9 @@ def train(conf):
     criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
     ft_criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
     # criterion = distillation
-    classifier_factory = ClassifierFactory(conf.classifier_type, conf.classifier_conf_file)
-    classifier_loader = ClassifierModelLoader(classifier_factory)
     backbone_factory = BackboneFactory(conf.backbone_type, conf.backbone_conf_file)    
+    backbone_model = backbone_factory.get_backbone()
 
-    model_loader = ModelLoader(backbone_factory)
-    backbone_model = model_loader.load_model(conf.backbone_model_path)
-    classifier_model = classifier_loader.load_model(conf.classifier_model_path)
 
     num_exits = len(backbone_model.cached_layers)
 
@@ -163,7 +140,7 @@ def train(conf):
     cache_hits = [is_confident for i in range(num_exits)]
     backbone_model.config_cache(exits= cache_exits, hits= cache_hits)
 
-    model = FaceModel(backbone_model, classifier_model)
+    model = PlaceModel(backbone_model)
     model = model.to(conf.train_device)
 
     print("Model ready to train")
@@ -221,7 +198,7 @@ def train(conf):
     exits_df = pd.DataFrame(columns=["Confidence", "ExitNumber", "HitTime", "HitRateOverAll", "HitRate", "Accuracy", "CacheAccuracy", "SamplesReached"])
     model_df = pd.DataFrame(columns=["Confidence", "ResponseTime", "CachedResponseTime", "MTTR", "CachedMTTR", "Accuracy", "CachedAccuracy", "MTTRRatio"])
     batch_df = pd.DataFrame(columns=["BatchSize", "Confidence", "ResponseTime", "CachedResponseTime", "MTTR", "CachedMTTR", "MTTRRatio"])
-    test_confidences =  [.45] #[i/100 for i in range(0, 101, 2)]
+    test_confidences =  [.45]#[i/100 for i in range(0, 101, 2)]
     test_batch_on_confidences = []#[0.05, .45]
     with torch.no_grad():
         if conf.distillation_test:
@@ -304,7 +281,7 @@ def train(conf):
                     for i in range(num_exits + 1):
                         idxs = results["idxs"][i]
                         if idxs.shape[0] == 0:
-                            print(f"Batch#{num_batch} received empty at exit#{i}")
+                            # print(f"Batch#{num_batch} received empty at exit#{i}")
                             break
                         hits = results["hits"][i]
                         out = results["outputs"][i]
@@ -458,9 +435,4 @@ if __name__ == '__main__':
     train(args)
     logger.info('Optimization done!')
 
-# Friday ok
-# Monday 2:35 - 5
-# Tuesday 2-5 + peyman
-# Wednesday 3-5
-# Thursday 2-3
 

@@ -10,6 +10,9 @@ import cv2
 import torch
 import numpy as np
 from torch.utils.data import Dataset
+from torchvision import transforms as trn
+from PIL import Image
+
 
 def transform(image):
     """ Transform a image by cv2.
@@ -47,6 +50,49 @@ def transform(image):
         image = (image.transpose((2, 0, 1)) - 127.5) * 0.0078125
         image = torch.from_numpy(image.astype(np.float32))
     return image
+
+
+class PlaceDataset(Dataset):
+    def __init__(self, data_root, train_file,  names_file, limit_per_class = None):
+        self.names_list = []
+        if names_file is not None:
+            names_file_buf = open(names_file)
+            line = names_file_buf.readline().strip()
+            while line:
+                self.names_list.append(line)
+                line = names_file_buf.readline().strip()
+        name_count = {}
+        self.data_root = data_root
+        self.train_list = []
+        train_file_buf = open(train_file)
+        line = train_file_buf.readline().strip()
+        while line:
+            image_path = line
+            image_label = int(self.names_list.index(image_path.split('/')[1]))
+            if image_label not in name_count:
+                name_count[image_label] = 0
+            if not limit_per_class or name_count[image_label] < 10:
+                self.train_list.append((image_path, image_label))
+                name_count[image_label] +=1
+            line = train_file_buf.readline().strip()
+        self.centre_crop = trn.Compose([
+                trn.Resize((256,256)),
+                trn.CenterCrop(224),
+                trn.ToTensor(),
+                trn.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+    def __len__(self):
+        return len(self.train_list)
+    def __getitem__(self, index):
+        
+        image_path, image_label = self.train_list[index]
+        image_path = os.path.join(self.data_root, image_path)
+        image = Image.open(image_path).convert('RGB')#cv2.imread(image_path)
+        image = self.centre_crop(image).unsqueeze(0)
+        # image = torch.from_numpy(image.astype(np.float32))
+        image = torch.squeeze(image, 0)
+        return image, image_label
+
 
 
 class ImageDataset(Dataset):
@@ -89,7 +135,9 @@ class ImageDataset(Dataset):
             image = image[:, :, np.newaxis]
         image = (image.transpose((2, 0, 1)) - 127.5) * 0.0078125
         image = torch.from_numpy(image.astype(np.float32))
+
         return image, image_label
+
 
 class ImageDataset_SST(Dataset):
     def __init__(self, data_root, train_file, exclude_id_set):

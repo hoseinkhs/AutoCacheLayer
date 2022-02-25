@@ -20,6 +20,7 @@ from backbone.ReXNets import ReXNetV1
 from backbone.LightCNN import LightCNN
 from backbone.RepVGG import RepVGG
 from backbone.Swin_Transformer import SwinTransformer
+from backbone.places365.resnet import places_resnet50
 
 class BackboneFactory:
     """Factory to produce backbone according the backbone_conf.yaml.
@@ -36,14 +37,20 @@ class BackboneFactory:
         print('backbone param:')
         print(self.backbone_param)
 
-    def get_backbone(self, cache_enabled=False, return_exits=False, cache_exits=[], cache_hits=[]):
-        if self.backbone_type == 'MobileFaceNet':
+    def get_backbone(self, cache_enabled=False, return_vectors=False, cache_exits=[], cache_hits=[]):
+        if self.backbone_type == "PlacesResnet":
+            backbone = places_resnet50(
+                cache_enabled=cache_enabled,
+                return_vectors=return_vectors,
+                cache_exits=cache_exits,
+                cache_hits=cache_hits)
+        elif self.backbone_type == 'MobileFaceNet':
             feat_dim = self.backbone_param['feat_dim'] # dimension of the output features, e.g. 512.
             out_h = self.backbone_param['out_h'] # height of the feature map before the final features.
             out_w = self.backbone_param['out_w'] # width of the feature map before the final features.
             backbone = MobileFaceNet(feat_dim, out_h, out_w,
                 cache_enabled=cache_enabled,
-                return_exits=return_exits,
+                return_vectors=return_vectors,
                 cache_exits=cache_exits,
                 cache_hits=cache_hits)
         elif self.backbone_type == 'ResNet':
@@ -67,7 +74,7 @@ class BackboneFactory:
                 dropout_rate=drop_ratio, image_size=image_size)
             backbone = EfficientNet(out_h, out_w, feat_dim, blocks_args, global_params,
                 cache_enabled=cache_enabled,
-                return_exits=return_exits,
+                return_vectors=return_vectors,
                 cache_exits=cache_exits,
                 cache_hits=cache_hits)
         elif self.backbone_type == 'HRNet':

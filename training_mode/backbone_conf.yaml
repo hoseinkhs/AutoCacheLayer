@@ -3,6 +3,8 @@ MobileFaceNet:
     out_h: 7
     out_w: 7
 
+PlacesResnet:
+
 ResNet:
     depth: 152
     drop_ratio: 0.4

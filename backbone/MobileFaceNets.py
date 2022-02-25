@@ -66,7 +66,7 @@ class Residual(Module):
         return self.model(x)
 
 class MobileFaceNet(Module):
-    def __init__(self, embedding_size, out_h, out_w, cache_enabled=False, return_exits=False, cache_exits = [], cache_hits = []):
+    def __init__(self, embedding_size, out_h, out_w, cache_enabled=False, return_vectors=False, cache_exits = [], cache_hits = []):
         super(MobileFaceNet, self).__init__()
         self.conv1 = Conv_block(3, 64, kernel=(3, 3), stride=(2, 2), padding=(1, 1))
         self.conv2_dw = Conv_block(64, 64, kernel=(3, 3), stride=(1, 1), padding=(1, 1), groups=64)
@@ -92,12 +92,29 @@ class MobileFaceNet(Module):
         self.shrink_on_hit = True
         self.cache_threshold = None
         self.cache_enabled = cache_enabled
-        self.return_exits = return_exits
+        self.return_vectors = return_vectors
+        
+        self.layers = [
+            self.conv1,
+            self.conv2_dw,
+            self.conv_23,
+            self.conv_3,
+            self.conv_34,
+            self.conv_4,
+            self.conv_45,
+            self.conv_5,
+            self.conv_6_sep,
+            self.conv_6_dw,
+            self.conv_6_flatten,
+            self.linear,
+            self.bn
+        ]
+        self.cached_layers = [3, 5, 7] #range(len(self.layers))
     
     def forward(self, x):
-        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(x.shape[0])], "outputs": [], "exits": []}
+        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(x.shape[0])], "outputs": [], "vectors": []}
         idxs = torch.arange(0, x.shape[0])
-        cache_active = self.cache_enabled and not self.return_exits
+        cache_active = self.cache_enabled and not self.return_vectors
 
         def process_exit(out, idxs, exit_idx):
             if not cache_active:
@@ -113,48 +130,31 @@ class MobileFaceNet(Module):
                 out = out[no_hits]
             results["idxs"].append(idxs)
             return out, idxs, len(idxs) == 0
-        
-        out = self.conv1(x)
-        out = self.conv2_dw(out)
-        out = self.conv_23(out)
-        out = self.conv_3(out)
-        if self.return_exits:
-            results["exits"].append(out)
-        if cache_active:
-            out, idxs, should_exit = process_exit(out, idxs, 0)
-            if should_exit:
-                return out, results
-        out = self.conv_34(out)
-        out = self.conv_4(out)
-        if self.return_exits:
-            results["exits"].append(out)
-        if cache_active:
-            out, idxs, should_exit = process_exit(out, idxs, 1)
-            if should_exit:
-                return out, results
-
-        out = self.conv_45(out)
-        out = self.conv_5(out)
-        if self.return_exits:
-            results["exits"].append(out)
-        if cache_active:
-            out, idxs, should_exit = process_exit(out, idxs, 2)
-            if should_exit:
-                return out, results
-        results["idxs"].append(idxs)
-        out = self.conv_6_sep(out)
-        out = self.conv_6_dw(out)
-        out = self.conv_6_flatten(out)
-        out = self.linear(out)
-        out = self.bn(out)
+        exit_idx = 0
+        for i in range(len(self.layers)):
+            if i in self.cached_layers:
+                if self.return_vectors:
+                    results["vectors"].append(out)
+                if cache_active:
+                    out, idxs, should_exit = process_exit(out, idxs, exit_idx)
+                    if should_exit:
+                        return out, results
+                exit_idx += 1
+            out = self.layers[i](out if i else x)
         
         return out, results
 
-    def config_cache(self, active, shrink=None, threshold=None):
-        self.cache_enabled = active
-        self.return_exits = not active
+    def config_cache(self, enabled=None, shrink=None, threshold=None, exits = None, vectors=None, hits=None):
+        if enabled is not None:
+            self.cache_enabled = enabled
+        if vectors is not None:
+            self.return_vectors = vectors
         if shrink is not None:
             self.shrink_on_hit = shrink
         if threshold is not None:
             self.cache_threshold = threshold
+        if exits is not None:
+            self.cache_exits = ModuleList(exits)
+        if hits is not None:
+            self.cache_hits = hits
 

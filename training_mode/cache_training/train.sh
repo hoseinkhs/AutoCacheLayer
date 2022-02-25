@@ -1,25 +1,25 @@
 
-    # --train_exits \
+# --exit_model_paths "./out_dir/${backbone}/exits/${exit_type}/Exit_0_epoch_${exit_epoch}.pt" \
+#                 "./out_dir/${backbone}/exits/${exit_type}/Exit_1_epoch_${exit_epoch}.pt" \
+#                 "./out_dir/${backbone}/exits/${exit_type}/Exit_2_epoch_${exit_epoch}.pt" \
+    # --distillation_test \
 #${XD}_names_img_list_test.txt"
 mkdir "log"
 XD=127
 BS=32
-backbone="EfficientNet"
+backbone="MobileFaceNet"
 classifier_type="Dense2Layer"
-exit_type="Dense2Layer"
+exit_type="Dense2LayerTemp"
 exit_epoch=19
-
+trial="007-distillation"
 
 python train.py \
     --shrink \
-    --trial 004 \
     --fine_tune 0 \
-    --epochs 0 \
+    --trial "${trial}" \
+    --train_epochs 30 \
     --train_device "cuda:0" \
-    --test_device "cuda:0" \
-    --exit_model_paths "./out_dir/${backbone}/exits/${exit_type}/Exit_0_epoch_${exit_epoch}.pt" \
-                    "./out_dir/${backbone}/exits/${exit_type}/Exit_1_epoch_${exit_epoch}.pt" \
-                    "./out_dir/${backbone}/exits/${exit_type}/Exit_2_epoch_${exit_epoch}.pt" \
+    --test_device "cpu" \
     --data_root "../../data/test/lfw/images_cropped" \
     --train_file "../../data/test/lfw/${XD}_names_img_list_train.txt" \
     --test_file "../../data/test/lfw/img_list.txt" \
@@ -30,9 +30,8 @@ python train.py \
     --classifier_type "${classifier_type}" \
     --classifier_conf_file "../classifier_conf.yaml" \
     --classifier_model_path "../classifier_training/out_dir/${backbone}/${XD}id/${classifier_type}/Epoch_19.pt" \
-    --num_exits 3 \
     --exit_type "${exit_type}" \
-    --exit_conf_file "../exit_conf.yaml" \
+    --exit_conf_file "./exit_conf.yaml" \
     --lr 0.1 \
     --out_dir "out_dir/${backbone}" \
     --step "10, 13, 16" \
@@ -43,5 +42,3 @@ python train.py \
     --log_dir "log" \
     --tensorboardx_logdir "mv-hrnet" \
     2>&1 | tee log/log.log
-
-
