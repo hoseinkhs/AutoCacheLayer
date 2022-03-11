@@ -19,12 +19,14 @@ class ClassifierFactory:
         classifier_type(str): which classifier will produce.
         classifier_param(dict):  parsed params and it's value. 
     """
-    def __init__(self, classifier_type, classifier_conf_file):
+    def __init__(self, classifier_type, classifier_conf_file, for_backbone = None):
         self.classifier_type = classifier_type
-        print("TYPE:", classifier_type)
         with open(classifier_conf_file) as f:
             classifier_conf = yaml.load(f, Loader=yaml.FullLoader)
-            self.classifier_param = classifier_conf[classifier_type]
+            if for_backbone:
+                self.classifier_param = classifier_conf[for_backbone][classifier_type]
+            else:
+                self.classifier_param = classifier_conf[classifier_type]
 
     def get_classifier(self):
         if self.classifier_type[:18] == 'Dense2LayerSoftmax':

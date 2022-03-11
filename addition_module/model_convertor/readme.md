@@ -1,1 +1,0 @@
-# Some scripts for convert a model.

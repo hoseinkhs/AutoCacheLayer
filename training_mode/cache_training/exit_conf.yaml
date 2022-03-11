@@ -1,103 +1,129 @@
-# ### Dense2Layer exits for EfficientNet
-# # Dense2Layer_exit_0:
-# #     feat_dim: 75264
-# #     n_l1: 150
-# #     n_l2: 127
-# # Dense2Layer_exit_1:
-# #     feat_dim: 31360
-# #     n_l1: 256
-# #     n_l2: 127
-# # Dense2Layer_exit_2:
-# #     feat_dim: 15680
-# #     n_l1: 256
-# #     n_l2: 127
+EfficientNet:
+    Dense2Layer_exit_1:
+        feat_dim: 75264
+        n_l1: 150
+        n_l2: 127
+    Dense2Layer_exit_3:
+        feat_dim: 31360
+        n_l1: 256
+        n_l2: 127
+    Dense2Layer_exit_5:
+        feat_dim: 15680
+        n_l1: 256
+        n_l2: 127
 
-# ###   ConvDense Exits for EfficientNet
-# ConvDense_exit_0:
-#     k_l1: 5
-#     in_ch_l1: 24
-#     out_ch_l1: 3
-#     s_l1: 1
-#     in_l2: 8112
-#     out_l2: 127
+    Dense2LayerTemp_exit_1:
+        feat_dim: 75264
+        n_l1: 150
+        n_l2: 127
+    Dense2LayerTemp_exit_3:
+        feat_dim: 31360
+        n_l1: 256
+        n_l2: 127
+    Dense2LayerTemp_exit_5:
+        feat_dim: 15680
+        n_l1: 256
+        n_l2: 127
 
-# ConvDense_exit_1:
-#     k_l1: 3
-#     in_ch_l1: 40
-#     out_ch_l1: 20
-#     s_l1: 1
-#     in_l2: 13520
-#     out_l2: 127
+    ConvDense_exit_1:
+        k_l1: 5
+        in_ch_l1: 24
+        out_ch_l1: 3
+        s_l1: 1
+        in_l2: 8112
+        out_l2: 127
 
-# ConvDense_exit_2:
-#     k_l1: 3
-#     in_ch_l1: 80
-#     out_ch_l1: 40
-#     s_l1: 1
-#     in_l2: 5760
-#     out_l2: 127
+    ConvDense_exit_3:
+        k_l1: 3
+        in_ch_l1: 40
+        out_ch_l1: 20
+        s_l1: 1
+        in_l2: 13520
+        out_l2: 127
 
-# # Exit conf for MobileFaceNet
-# Dense2Layer_exit_0:
-#     feat_dim: 50176
-#     n_l1: 256
-#     n_l2: 127
-# Dense2Layer_exit_1:
-#     feat_dim: 25088
-#     n_l1: 256
-#     n_l2: 127
-# Dense2Layer_exit_2:
-#     feat_dim: 6272
-#     n_l1: 256
-#     n_l2: 127
+    ConvDense_exit_5:
+        k_l1: 3
+        in_ch_l1: 80
+        out_ch_l1: 40
+        s_l1: 1
+        in_l2: 5760
+        out_l2: 127
 
-# Dense2LayerTemp_exit_0:
-#     feat_dim: 50176
-#     n_l1: 256
-#     n_l2: 127
-# Dense2LayerTemp_exit_1:
-#     feat_dim: 25088
-#     n_l1: 256
-#     n_l2: 127
-# Dense2LayerTemp_exit_2:
-#     feat_dim: 6272
-#     n_l1: 256
-    # n_l2: 127
+MobileFaceNet:
+    Dense2Layer_exit_3:
+        feat_dim: 50176
+        n_l1: 256
+        n_l2: 127
+    Dense2Layer_exit_5:
+        feat_dim: 25088
+        n_l1: 256
+        n_l2: 127
+    Dense2Layer_exit_7:
+        feat_dim: 6272
+        n_l1: 256
+        n_l2: 127
 
-# Exit conf for PlacesResnet:
-Dense2LayerTemp_exit_0:
-    feat_dim: 1048576
-    n_l1: 365
-    n_l2: 365
-Dense2LayerTemp_exit_1:
-    feat_dim: 25088
-    n_l1: 512
-    n_l2: 365
-Dense2LayerTemp_exit_2:
-    feat_dim: 6272
-    n_l1: 512
-    n_l2: 365
+    Dense2LayerTemp_exit_3:
+        feat_dim: 50176
+        n_l1: 256
+        n_l2: 127
+    Dense2LayerTemp_exit_5:
+        feat_dim: 25088
+        n_l1: 256
+        n_l2: 127
+    Dense2LayerTemp_exit_7:
+        feat_dim: 6272
+        n_l1: 256
+        n_l2: 127
 
-ConvDense_exit_0:
-    k_l1: 5
-    in_ch_l1: 64
-    out_ch_l1: 3
-    s_l1: 1
-    in_l2: 46128
-    out_l2: 365
+PlacesAlexNet:
+    Dense2Layer_exit_0:
+        feat_dim: 64896 #1048576
+        n_l1: 512
+        n_l2: 365
+    Dense2Layer_exit_1:
+        feat_dim: 25088
+        n_l1: 512
+        n_l2: 365
+    Dense2Layer_exit_2:
+        feat_dim: 6272
+        n_l1: 512
+        n_l2: 365
 
-ConvDense_exit_1:
-    k_l1: 3
-    in_ch_l1: 256
-    out_ch_l1: 20
-    s_l1: 1
-    in_l2: 317520
-    out_l2: 365
+    Dense2LayerTemp_exit_0:
+        feat_dim: 193600 #1048576
+        n_l1: 1024
+        n_l2: 365
+    Dense2LayerTemp_exit_1:
+        feat_dim: 25088
+        n_l1: 512
+        n_l2: 365
+    Dense2LayerTemp_exit_2:
+        feat_dim: 6272
+        n_l1: 512
+        n_l2: 365
 
-ConvDense_exit_2:
-    k_l1: 3
-    in_ch_l1: 512
-    out_ch_l1: 20
-    s_l1: 1
-    in_l2: 76880
-    out_l2: 365
+    ConvDense_exit_1:
+        k_l1: 5
+        in_ch_l1: 64
+        out_ch_l1: 128
+        s_l1: 1
+        in_l2: 332928
+        out_l2: 365
+
+    ConvDense_exit_4:
+        k_l1: 3
+        in_ch_l1: 192
+        out_ch_l1: 20
+        s_l1: 1
+        in_l2: 12500
+        out_l2: 365
+
+    ConvDense_exit_7:
+        k_l1: 3
+        in_ch_l1: 384
+        out_ch_l1: 20
+        s_l1: 1
+        in_l2: 2420
+        out_l2: 365
+

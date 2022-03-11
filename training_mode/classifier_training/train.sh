@@ -6,7 +6,7 @@ python train.py \
     --data_root "../../data/test/lfw/images_cropped" \
     --train_file "../../data/test/lfw/${XD}_names_img_list_train.txt" \
     --test_file "../../data/test/lfw/${XD}_names_img_list_test.txt" \
-    --names_file "../../data/test/lfw/${XD}_names.txt" \
+    --classes_file "../../data/test/lfw/${XD}_names.txt" \
     --backbone_type "${backbone}" \
     --backbone_conf_file "../backbone_conf.yaml" \
     --backbone_model_path "../../models/${backbone}-Epoch_17.pt" \

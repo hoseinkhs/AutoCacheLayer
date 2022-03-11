@@ -1,14 +1,14 @@
 
-def augment(names_file, img_list, , include_original=True, aug_count= 10):
+def augment(classes_file, img_list, , include_original=True, aug_count= 10):
     names_list = {}
     names_list_idxs = []
-    names_file_buf = open(names_file)
-    line = names_file_buf.readline().strip()
+    classes_file_buf = open(classes_file)
+    line = classes_file_buf.readline().strip()
     while line:
         if line not in names_list:
             names_list[line] = 0
             names_list_idxs.append(line)
-        line = names_file_buf.readline().strip()
+        line = classes_file_buf.readline().strip()
     
     img_list_buf = open(img_list)
     line = img_list_buf.readline().strip()
@@ -32,7 +32,7 @@ def augment(names_file, img_list, , include_original=True, aug_count= 10):
     
 if __name__ == "__main__":
     img_list = '../../data/test/lfw/127_names_img_list_test.txt' 
-    names_file = '../../data/test/lfw/127_names.txt' 
+    classes_file = '../../data/test/lfw/127_names.txt' 
     target_path = '../../data/test/lfw/127_augmented/'
     
-    augment(names_file, train_file,target_path)
+    augment(classes_file, train_file,target_path)

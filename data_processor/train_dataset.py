@@ -53,14 +53,14 @@ def transform(image):
 
 
 class PlaceDataset(Dataset):
-    def __init__(self, data_root, train_file,  names_file, limit_per_class = None):
+    def __init__(self, data_root, train_file,  classes_file, limit_per_class = None):
         self.names_list = []
-        if names_file is not None:
-            names_file_buf = open(names_file)
-            line = names_file_buf.readline().strip()
+        if classes_file is not None:
+            classes_file_buf = open(classes_file)
+            line = classes_file_buf.readline().strip()
             while line:
                 self.names_list.append(line)
-                line = names_file_buf.readline().strip()
+                line = classes_file_buf.readline().strip()
         name_count = {}
         self.data_root = data_root
         self.train_list = []
@@ -96,14 +96,14 @@ class PlaceDataset(Dataset):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, data_root, train_file, crop_eye=False, names_file = None, name_as_label=False, allow_unknown=False):
+    def __init__(self, data_root, train_file, crop_eye=False, classes_file = None, name_as_label=False, allow_unknown=False):
         self.names_list = []
-        if names_file is not None:
-            names_file_buf = open(names_file)
-            line = names_file_buf.readline().strip()
+        if classes_file is not None:
+            classes_file_buf = open(classes_file)
+            line = classes_file_buf.readline().strip()
             while line:
                 self.names_list.append(line)
-                line = names_file_buf.readline().strip()
+                line = classes_file_buf.readline().strip()
         self.data_root = data_root
         self.train_list = []
         train_file_buf = open(train_file)

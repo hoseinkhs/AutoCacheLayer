@@ -21,6 +21,7 @@ from backbone.LightCNN import LightCNN
 from backbone.RepVGG import RepVGG
 from backbone.Swin_Transformer import SwinTransformer
 from backbone.places365.resnet import places_resnet50
+from backbone.places365.alexnet import places_alexnet
 
 class BackboneFactory:
     """Factory to produce backbone according the backbone_conf.yaml.
@@ -38,8 +39,14 @@ class BackboneFactory:
         print(self.backbone_param)
 
     def get_backbone(self, cache_enabled=False, return_vectors=False, cache_exits=[], cache_hits=[]):
-        if self.backbone_type == "PlacesResnet":
+        if self.backbone_type == "PlacesResNet":
             backbone = places_resnet50(
+                cache_enabled=cache_enabled,
+                return_vectors=return_vectors,
+                cache_exits=cache_exits,
+                cache_hits=cache_hits)
+        elif self.backbone_type == "PlacesAlexNet":
+            backbone = places_alexnet(
                 cache_enabled=cache_enabled,
                 return_vectors=return_vectors,
                 cache_exits=cache_exits,

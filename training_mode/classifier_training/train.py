@@ -99,9 +99,9 @@ def train_one_epoch(data_loader, model, optimizer, criterion, cur_epoch, loss_me
 def train(conf):
     """Total training procedure.
     """
-    train_data_loader = DataLoader(ImageDataset(conf.data_root, conf.train_file, names_file=conf.names_file, name_as_label=True), 
+    train_data_loader = DataLoader(ImageDataset(conf.data_root, conf.train_file, classes_file=conf.classes_file, name_as_label=True), 
                              conf.batch_size, True, num_workers = 0)
-    test_data_loader = DataLoader(ImageDataset(conf.data_root, conf.test_file, names_file=conf.names_file, name_as_label=True), 
+    test_data_loader = DataLoader(ImageDataset(conf.data_root, conf.test_file, classes_file=conf.classes_file, name_as_label=True), 
                              conf.batch_size, True, num_workers = 0)
     conf.device = torch.device('cuda:0')
     
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                       help = 'The path of pretrained model')
     conf.add_argument('--resume', '-r', action = 'store_true', default = False, 
                       help = 'Whether to resume from a checkpoint.')
-    conf.add_argument('--names_file', required=True,
+    conf.add_argument('--classes_file', required=True,
                       help = 'List of names to train the classifier for')
     args = conf.parse_args()
     args.milestones = [int(num) for num in args.step.split(',')]
