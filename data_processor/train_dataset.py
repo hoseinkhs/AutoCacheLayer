@@ -53,27 +53,32 @@ def transform(image):
 
 
 class PlaceDataset(Dataset):
-    def __init__(self, data_root, train_file,  classes_file, limit_per_class = None):
-        self.names_list = []
+    def __init__(self, data_root, train_file,  classes_file, limit_per_class = None, skip_per_class = None):
+        self.class_list = []
         if classes_file is not None:
             classes_file_buf = open(classes_file)
             line = classes_file_buf.readline().strip()
             while line:
-                self.names_list.append(line)
+                self.class_list.append(line)
                 line = classes_file_buf.readline().strip()
-        name_count = {}
+        class_count = {}
+        class_skipped_count = {}
         self.data_root = data_root
         self.train_list = []
         train_file_buf = open(train_file)
         line = train_file_buf.readline().strip()
         while line:
             image_path = line
-            image_label = int(self.names_list.index(image_path.split('/')[1]))
-            if image_label not in name_count:
-                name_count[image_label] = 0
-            if not limit_per_class or name_count[image_label] < 10:
-                self.train_list.append((image_path, image_label))
-                name_count[image_label] +=1
+            image_label = int(self.class_list.index(image_path.split('/')[1]))
+            if image_label not in class_count:
+                class_count[image_label] = 0
+                class_skipped_count[image_label] = 0
+            if not limit_per_class or class_count[image_label] < limit_per_class:
+                if not skip_per_class or class_skipped_count[image_label] == skip_per_class:
+                    self.train_list.append((image_path, image_label))
+                    class_count[image_label] +=1
+                else:
+                    class_skipped_count[image_label] += 1
             line = train_file_buf.readline().strip()
         self.centre_crop = trn.Compose([
                 trn.Resize((256,256)),
@@ -97,12 +102,12 @@ class PlaceDataset(Dataset):
 
 class ImageDataset(Dataset):
     def __init__(self, data_root, train_file, crop_eye=False, classes_file = None, name_as_label=False, allow_unknown=False):
-        self.names_list = []
+        self.class_list = []
         if classes_file is not None:
             classes_file_buf = open(classes_file)
             line = classes_file_buf.readline().strip()
             while line:
-                self.names_list.append(line)
+                self.class_list.append(line)
                 line = classes_file_buf.readline().strip()
         self.data_root = data_root
         self.train_list = []
@@ -112,8 +117,8 @@ class ImageDataset(Dataset):
             if name_as_label:
                 image_path = line.split(' ')[0]
                 image_name = image_path.split('/')[0]
-                if image_name in self.names_list or allow_unknown:
-                    image_label = self.names_list.index(image_name) if image_name in self.names_list else -1
+                if image_name in self.class_list or allow_unknown:
+                    image_label = self.class_list.index(image_name) if image_name in self.class_list else -1
                     self.train_list.append((image_path, int(image_label)))
             else:
                 image_path, image_label = line.split(' ')[:2]

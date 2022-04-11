@@ -26,10 +26,10 @@ class ModelMeter:
         return pr(self.confidence, self.total)
 
     def mttr(self):
-        return round(self.time / self.num_batch, 2) if self.num_batch else -1
+        return round(self.time / self.num_batch, 4) if self.num_batch else -1
 
     def cached_mttr(self):
-        return round(self.samplewise_hit_time / self.total, 2) if self.total else -1
+        return round(self.samplewise_hit_time / self.total, 4) if self.total else -1
 
     def __str__(self):
         return f"Model {self.name}: \n \
@@ -37,7 +37,8 @@ class ModelMeter:
         Accuracy: {self.accuracy()} | Conf: {self.mean_confidence()} \n \
         Times: MTTR {self.mttr()} | CMTTR {self.cached_mttr()} | OvTime: {self.time:.2f}"
 class ExitMeter:
-    def __init__(self, exit_id, mm):
+    def __init__(self, name, exit_id, mm):
+        self.name = name
         self.mm = mm
         self.exit_id = exit_id
         self.correct = 0
@@ -78,8 +79,8 @@ class ExitMeter:
 
         self.mm.samplewise_hit_time += num_hits * hit_time
 
-    def hit_rate(self):
-        return pr(self.hit_count, self.num_sample)
+    def hit_rate(self, over_all=False):
+        return pr(self.hit_count, self.mm.total if over_all else self.num_sample)
     
     def accuracy(self):
         return pr(self.correct, self.hit_count)
@@ -92,9 +93,36 @@ class ExitMeter:
     
     def time_ratio(self):
         return pr(self.hit_time, self.mm.time)
-
+    def hit_time_ratio(self, meter):
+        return pr(self.hit_time, meter.time)
     def __str__(self):
-        return f"Cache exit {self.exit_id}: \n \
+        return f"Cache model {self.name}, Exit#{self.exit_id}: \n \
         Hit rate: {self.hit_rate()} | {self.hit_count} hits | {self.num_sample} samples | {self.num_batch} batches \n \
         Accuracy: {self.accuracy()} | CA: {self.cache_accuracy()} | Conf: {self.mean_confidence()} \n \
         Time:  {self.time_ratio()}% | OvTime: {self.hit_time}"
+
+    def __dict__(self):
+        return {
+            "ExitName": self.name, 
+            "HitTime": self.time_ratio(),
+            "HitRateOverAll": self.hit_rate(over_all=True),
+            "HitRate": self.hit_rate(),
+            "Accuracy": self.accuracy(),
+            "CacheAccuracy": self.cache_accuracy(),
+            "SamplesReached": self.num_sample,
+            "BatchesReached": self.num_batch
+        }
+
+
+        {
+            "Confidence": 1,
+            "ExitNumber": 1.0,
+            "ExitName": 1, 
+            "HitTime": 1,
+            "HitRateOverAll": 1,
+            "HitRate": 1,
+            "Accuracy": 1,
+            "CacheAccuracy": 1,
+            "SamplesReached": 1,
+            "BatchesReached": 1
+        }

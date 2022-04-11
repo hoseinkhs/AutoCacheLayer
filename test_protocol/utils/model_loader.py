@@ -28,7 +28,7 @@ class ModelLoader:
         model = torch.nn.DataParallel(self.model).cuda()
         return model
 
-    def load_model(self, model_path, ignore_cachees=True):
+    def load_model(self, model_path, ignore_caches=True):
         """The custom method to load a model.
         
         Args:
@@ -42,7 +42,7 @@ class ModelLoader:
         #pretrained_dict = torch.load(model_path) 
         new_pretrained_dict = {}
         for k in model_dict:
-            if ignore_cachees and "cache_exits" in k:
+            if ignore_caches and "cache_exits" in k:
                 continue
             new_pretrained_dict[k] = pretrained_dict['backbone.'+k] # tradition training
             #new_pretrained_dict[k] = pretrained_dict['feat_net.'+k] # tradition training

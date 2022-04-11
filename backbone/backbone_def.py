@@ -22,6 +22,7 @@ from backbone.RepVGG import RepVGG
 from backbone.Swin_Transformer import SwinTransformer
 from backbone.places365.resnet import places_resnet50
 from backbone.places365.alexnet import places_alexnet
+from backbone.places365.densenet import places_densenet
 
 class BackboneFactory:
     """Factory to produce backbone according the backbone_conf.yaml.
@@ -38,28 +39,18 @@ class BackboneFactory:
         print('backbone param:')
         print(self.backbone_param)
 
-    def get_backbone(self, cache_enabled=False, return_vectors=False, cache_exits=[], cache_hits=[]):
+    def get_backbone(self):
         if self.backbone_type == "PlacesResNet":
-            backbone = places_resnet50(
-                cache_enabled=cache_enabled,
-                return_vectors=return_vectors,
-                cache_exits=cache_exits,
-                cache_hits=cache_hits)
+            backbone = places_resnet50()
         elif self.backbone_type == "PlacesAlexNet":
-            backbone = places_alexnet(
-                cache_enabled=cache_enabled,
-                return_vectors=return_vectors,
-                cache_exits=cache_exits,
-                cache_hits=cache_hits)
+            backbone = places_alexnet()
+        elif self.backbone_type == "PlacesDenseNet":
+            backbone = places_densenet()
         elif self.backbone_type == 'MobileFaceNet':
             feat_dim = self.backbone_param['feat_dim'] # dimension of the output features, e.g. 512.
             out_h = self.backbone_param['out_h'] # height of the feature map before the final features.
             out_w = self.backbone_param['out_w'] # width of the feature map before the final features.
-            backbone = MobileFaceNet(feat_dim, out_h, out_w,
-                cache_enabled=cache_enabled,
-                return_vectors=return_vectors,
-                cache_exits=cache_exits,
-                cache_hits=cache_hits)
+            backbone = MobileFaceNet(feat_dim, out_h, out_w)
         elif self.backbone_type == 'ResNet':
             depth = self.backbone_param['depth'] # depth of the ResNet, e.g. 50, 100, 152.
             drop_ratio = self.backbone_param['drop_ratio'] # drop out ratio.
@@ -79,11 +70,7 @@ class BackboneFactory:
             blocks_args, global_params = efficientnet(
                 width_coefficient=width, depth_coefficient=depth, 
                 dropout_rate=drop_ratio, image_size=image_size)
-            backbone = EfficientNet(out_h, out_w, feat_dim, blocks_args, global_params,
-                cache_enabled=cache_enabled,
-                return_vectors=return_vectors,
-                cache_exits=cache_exits,
-                cache_hits=cache_hits)
+            backbone = EfficientNet(out_h, out_w, feat_dim, blocks_args, global_params)
         elif self.backbone_type == 'HRNet':
             config = {}
             config['MODEL'] = self.backbone_param

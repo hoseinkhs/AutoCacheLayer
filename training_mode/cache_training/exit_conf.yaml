@@ -50,6 +50,7 @@ EfficientNet:
         out_l2: 127
 
 MobileFaceNet:
+
     Dense2Layer_exit_3:
         feat_dim: 50176
         n_l1: 256
@@ -62,6 +63,19 @@ MobileFaceNet:
         feat_dim: 6272
         n_l1: 256
         n_l2: 127
+
+    DenseEmbed_exit_3:
+        feat_dim: 50176
+        n_l1: 1024
+        n_l2: 512
+    DenseEmbed_exit_5:
+        feat_dim: 25088
+        n_l1: 1024
+        n_l2: 512
+    DenseEmbed_exit_7:
+        feat_dim: 6272
+        n_l1: 1024
+        n_l2: 512
 
     Dense2LayerTemp_exit_3:
         feat_dim: 50176
@@ -77,28 +91,28 @@ MobileFaceNet:
         n_l2: 127
 
 PlacesAlexNet:
-    Dense2Layer_exit_0:
+    Dense2Layer_exit_1:
         feat_dim: 64896 #1048576
         n_l1: 512
         n_l2: 365
-    Dense2Layer_exit_1:
+    Dense2Layer_exit_4:
         feat_dim: 25088
         n_l1: 512
         n_l2: 365
-    Dense2Layer_exit_2:
+    Dense2Layer_exit_7:
         feat_dim: 6272
         n_l1: 512
         n_l2: 365
 
-    Dense2LayerTemp_exit_0:
+    Dense2LayerTemp_exit_1:
         feat_dim: 193600 #1048576
         n_l1: 1024
         n_l2: 365
-    Dense2LayerTemp_exit_1:
-        feat_dim: 25088
+    Dense2LayerTemp_exit_4:
+        feat_dim: 139968
         n_l1: 512
         n_l2: 365
-    Dense2LayerTemp_exit_2:
+    Dense2LayerTemp_exit_7:
         feat_dim: 6272
         n_l1: 512
         n_l2: 365
@@ -126,4 +140,37 @@ PlacesAlexNet:
         s_l1: 1
         in_l2: 2420
         out_l2: 365
+    ConvDense_exit_9:
+        k_l1: 3
+        in_ch_l1: 256
+        out_ch_l1: 20
+        s_l1: 1
+        in_l2: 2420
+        out_l2: 365
+    ConvDense_exit_11:
+        k_l1: 3
+        in_ch_l1: 256
+        out_ch_l1: 20
+        s_l1: 1
+        in_l2: 2420
+        out_l2: 365
 
+
+PlacesDenseNet:
+
+    Dense2LayerTemp_exit_4:
+        feat_dim: 602110 #1048576
+        n_l1: 1024
+        n_l2: 365
+    Dense2LayerTemp_exit_6:
+        feat_dim: 139968
+        n_l1: 512
+        n_l2: 365
+    Dense2LayerTemp_exit_8:
+        feat_dim: 6272
+        n_l1: 512
+        n_l2: 365
+    Dense2LayerTemp_exit_10:
+        feat_dim: 108192
+        n_l1: 512
+        n_l2: 365

@@ -8,6 +8,7 @@
 # https://github.com/TreB1eN/InsightFace_Pytorch/blob/master/model.py
 
 from torch.nn import Linear, Conv2d, BatchNorm1d, BatchNorm2d, PReLU, Sequential, Module, ModuleList
+from backbone.CacheControl import CacheControl
 import torch
 import time
 class Flatten(Module):
@@ -66,7 +67,7 @@ class Residual(Module):
         return self.model(x)
 
 class MobileFaceNet(Module):
-    def __init__(self, embedding_size, out_h, out_w, cache_enabled=False, return_vectors=False, cache_exits = [], cache_hits = []):
+    def __init__(self, embedding_size, out_h, out_w):
         super(MobileFaceNet, self).__init__()
         self.conv1 = Conv_block(3, 64, kernel=(3, 3), stride=(2, 2), padding=(1, 1))
         self.conv2_dw = Conv_block(64, 64, kernel=(3, 3), stride=(1, 1), padding=(1, 1), groups=64)
@@ -87,12 +88,6 @@ class MobileFaceNet(Module):
         self.linear = Linear(512, embedding_size, bias=False)
         self.bn = BatchNorm1d(embedding_size)
 
-        self.cache_exits = ModuleList(cache_exits)
-        self.cache_hits = cache_hits
-        self.shrink_on_hit = True
-        self.cache_threshold = None
-        self.cache_enabled = cache_enabled
-        self.return_vectors = return_vectors
         
         self.layers = [
             self.conv1,
@@ -111,50 +106,20 @@ class MobileFaceNet(Module):
         ]
         self.cached_layers = [3, 5, 7] #range(len(self.layers))
     
-    def forward(self, x):
-        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(x.shape[0])], "outputs": [], "vectors": []}
-        idxs = torch.arange(0, x.shape[0])
-        cache_active = self.cache_enabled and not self.return_vectors
-
-        def process_exit(out, idxs, exit_idx):
-            if not cache_active:
-                return out, idxs, False
-            cache = self.cache_exits[exit_idx](out)
-            hit = self.cache_hits[exit_idx](cache, self.cache_threshold)
-            results["hit_times"].append(time.time())
-            results["outputs"].append(cache)
-            results["hits"].append(hit)
-            if self.shrink_on_hit:
-                no_hits = torch.logical_not(hit)
-                idxs = idxs[no_hits]
-                out = out[no_hits]
-            results["idxs"].append(idxs)
-            return out, idxs, len(idxs) == 0
-        exit_idx = 0
+    def forward(self, x, args, cache=False, return_vectors=False, threshold = 1, training=False):
+        cc = CacheControl(args, x.shape, threshold, self.cache_exits, training)
         for i in range(len(self.layers)):
             if i in self.cached_layers:
-                if self.return_vectors:
-                    results["vectors"].append(out)
-                if cache_active:
-                    out, idxs, should_exit = process_exit(out, idxs, exit_idx)
+                if return_vectors:
+                    cc.vectors.append(out)
+                if cache:
+                    out, should_exit = cc.exit(out)
                     if should_exit:
-                        return out, results
-                exit_idx += 1
+                        return out, cc.ret, cc.report()
             out = self.layers[i](out if i else x)
-        
-        return out, results
+        cc.end_time = time.time()
+        return out, cc.ret, cc.report()
 
-    def config_cache(self, enabled=None, shrink=None, threshold=None, exits = None, vectors=None, hits=None):
-        if enabled is not None:
-            self.cache_enabled = enabled
-        if vectors is not None:
-            self.return_vectors = vectors
-        if shrink is not None:
-            self.shrink_on_hit = shrink
-        if threshold is not None:
-            self.cache_threshold = threshold
-        if exits is not None:
-            self.cache_exits = ModuleList(exits)
-        if hits is not None:
-            self.cache_hits = hits
+    def set_exit_models(self, models):
+        self.cache_exits = ModuleList(models)
 

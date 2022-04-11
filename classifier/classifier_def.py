@@ -9,7 +9,7 @@ import yaml
 
 from classifier.MatchingHead import MatchingHead2
 sys.path.append('../../')
-from classifier.Dense2Layer import Dense2Layer, Dense2LayerSoftmax, Dense2LayerTemp
+from classifier.Dense2Layer import Dense2Layer, Dense2LayerSoftmax, Dense2LayerTemp, DenseEmbed
 from classifier.ConvDense import ConvDense
 
 class ClassifierFactory:
@@ -44,7 +44,11 @@ class ClassifierFactory:
             n_l1 = self.classifier_param['n_l1'] # height of the feature map before the final features.
             n_l2 = self.classifier_param['n_l2'] # width of the feature map before the final features.
             classifier = Dense2Layer(feat_dim, n_l1, n_l2)
-        
+        elif self.classifier_type[:10] == 'DenseEmbed':
+            feat_dim = self.classifier_param['feat_dim'] # dimension of the input features, e.g. 512.
+            n_l1 = self.classifier_param['n_l1'] # height of the feature map before the final features.
+            n_l2 = self.classifier_param['n_l2'] # width of the feature map before the final features.
+            classifier = DenseEmbed(feat_dim, n_l1, n_l2)
         elif self.classifier_type[:13] == 'MatchingHead2':
             feat_dim = self.classifier_param['feat_dim'] # dimension of the input features, e.g. 512.
             out_h = self.classifier_param['out_h'] # height of the feature map before the final features.

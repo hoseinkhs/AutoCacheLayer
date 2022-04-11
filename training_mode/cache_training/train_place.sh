@@ -5,11 +5,10 @@
 mkdir "log"
 XD=365
 BS=32
-backbone="PlacesAlexNet" #"PlacesResnet"
-
+backbone="PlacesAlexNet" #"PlacesResnet"#"PlacesDenseNet"#
 exit_type="ConvDense"
 exit_epoch=0
-trial="accuracies-no-shrink"
+trial="acc-conf-no-shrink"
 
 python train.py \
     --experiment "Place" \
@@ -18,7 +17,7 @@ python train.py \
     --trial "${trial}" \
     --train_epochs 0 \
     --train_device "cuda:0" \
-    --test_device "cuda:0" \
+    --test_device "cpu" \
     --exit_model_path "./out_dir/${backbone}/exits/${exit_type}/" \
     --data_root "../../data/places/places365_standard" \
     --train_file "../../data/places/places365_standard/val.txt" \

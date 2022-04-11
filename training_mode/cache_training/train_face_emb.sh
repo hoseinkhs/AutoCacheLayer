@@ -6,24 +6,22 @@ XD=127
 BS=32
 backbone="MobileFaceNet"
 classifier_type="Dense2Layer"
-exit_type="Dense2LayerTemp"
+exit_type="DenseEmbed"
 exit_epoch=19
-trial="check"
+trial="embedding"
 
-python train.py \
+python train_emb.py \
     --experiment "Face" \
     --shrink \
-    --run_server \
     --num_classes ${XD} \
     --fine_tune 0 \
     --trial "${trial}" \
-    --train_epochs 20 \
-    --online_train_epochs 20 \
+    --train_epochs 100 \
     --train_device "cuda:0" \
     --test_device "cuda:0" \
     --exit_model_path "./out_dir/${backbone}/exits/${exit_type}/" \
     --data_root "../../data/test/lfw/images_cropped" \
-    --train_file "../../data/test/lfw/${XD}_names_img_list_train.txt" \
+    --train_file "../../data/test/lfw/img_list.txt" \
     --test_file "../../data/test/lfw/img_list.txt" \
     --classes_file "../../data/test/lfw/${XD}_names.txt" \
     --backbone_type "${backbone}" \
@@ -40,7 +38,6 @@ python train.py \
     --print_freq 200 \
     --save_freq 3000 \
     --batch_size $BS \
-    --test_batch_size 1 \
     --momentum 0.9 \
     --log_dir "log" \
     --tensorboardx_logdir "mv-hrnet" \

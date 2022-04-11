@@ -17,6 +17,7 @@ class PlaceModel(torch.nn.Module):
         self.backbone = backbone_model
         for param in self.backbone.parameters():
             param.requires_grad = False
+        self.version = 0
 
     def forward(self, data, ):
         feat, results = self.backbone.forward(data)
@@ -44,17 +45,19 @@ class FaceModel(torch.nn.Module):
             param.requires_grad = False
         for param in self.classifier.parameters():
             param.requires_grad = False
-
-    def forward(self, data, ):
-        feat, results = self.backbone.forward(data)
-        if feat.shape[0]:
+        self.version = 0
+        
+    def forward(self, data, conf, logger=None,*args, **kwargs):
+        feat, ret, results = self.backbone.forward(data, conf, *args, **kwargs)
+        if feat.size(0):
             classification = self.classifier.forward(feat)
             results["outputs"].append(classification)
             results["hits"].append(torch.ones(classification.shape[0]))
+            ret[results["idxs"][-1]] = classification
             tt = time.time()
             results["hit_times"].append(tt)
             results["end_time"] = tt
-            return classification, results
+            return ret, results
         else:
             results["end_time"] = time.time()
-            return feat, results
+            return ret, results

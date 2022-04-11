@@ -13,7 +13,6 @@ from utils.AverageMeter import AverageMeter
 from concurrent.futures import thread
 import os
 from datetime import datetime
-
 import shutil
 import argparse
 import logging as logger
@@ -27,24 +26,25 @@ import time
 import pandas as pd
 import numpy as np
 from training_mode.cache_training.models import FaceModel, PlaceModel
-from training_mode.cache_training.aux import train_one_epoch, get_lr
+from training_mode.cache_training.aux import train_one_epoch, threshold_confidence, get_lr
 from training_mode.cache_training.meters import ModelMeter, ExitMeter
-from training_mode.cache_training.server import Server
+
 
 logger.basicConfig(level=logger.INFO,
                    format='%(levelname)s %(asctime)s %(filename)s: %(lineno)d] %(message)s',
                    datefmt='%Y-%m-%d %H:%M:%S')
 
 
-def experiment(conf, model, criterion, ft_criterion, train_data, test_data, return_artifacts=False):
+def experiment(conf, model, criterion, ft_criterion, train_data_loader, test_data_loader):
     now = datetime.now()
     dt_string = now.strftime("%Y-%m-%d-%H:%M:%S")
 
     conf.train_device = torch.device(conf.train_device)
     conf.test_device = torch.device(conf.test_device)
 
-    cached_layers = model.backbone.cached_layers
-    if conf.train_epochs or conf.run_server:
+    cached_layers = model.cached_layers
+    cache_hits = [threshold_confidence for i in range(len(cached_layers))]
+    if conf.train_epochs:
         cache_exits = [
             ClassifierFactory(f'{conf.exit_type}_exit_{i}', conf.exit_conf_file,
                               for_backbone=conf.backbone_type).get_classifier()
@@ -55,21 +55,19 @@ def experiment(conf, model, criterion, ft_criterion, train_data, test_data, retu
                 ClassifierFactory(f'{conf.exit_type}_exit_{i}', conf.exit_conf_file, for_backbone=conf.backbone_type)).load_model_default(
                     os.path.join(conf.exit_model_path, f"Exit_{i}.pt")
             ) for i in cached_layers]
+    
 
-    backbone = model.backbone
-    backbone.set_exit_models(cache_exits)
+    model.config_cache(exits=cache_exits, hits=cache_hits)
+
+    if return_artifacts:
+        return model
 
     num_exits = len(cached_layers)
-
-    test_data_loader = DataLoader(test_data,
-                                   conf.test_batch_size, True, num_workers=0)
-
     model = model.to(conf.train_device)
-    
-    if conf.train_epochs > 0 and not conf.run_server:
-        print("Model ready to train")
-        train_data_loader = DataLoader(train_data,
-                                   conf.batch_size, True, num_workers=0)
+
+    print("Model ready to train")
+    if conf.train_epochs > 0:
+        model.config_cache(vectors=True)
         for num_exit in range(num_exits):
             exit_model = cache_exits[num_exit]
             idx = cached_layers[num_exit]
@@ -77,7 +75,10 @@ def experiment(conf, model, criterion, ft_criterion, train_data, test_data, retu
                 p.requires_grad = False
             for p in exit_model.parameters():
                 p.requires_grad = True
-
+            # if conf.distillation_test:
+            #     for l in model.backbone.layers[:cached_layers[idx]]:
+            #         for p in l.parameters():
+            #             p.requires_grad = True
             parameters = [p for p in exit_model.parameters()
                           if p.requires_grad]
 
@@ -112,85 +113,117 @@ def experiment(conf, model, criterion, ft_criterion, train_data, test_data, retu
                 p.requires_grad = False
 
     print(f"Testing on {conf.test_device}, Shrink enabled: {conf.shrink}")
+    model.config_cache(vectors=False)
     model = model.to(conf.test_device)
     model.eval()
-    model.backbone.eval()
+    # model.backbone.eval()
     for ex in cache_exits:
         ex.eval()
-
-    if return_artifacts:
-        return model, test_data
-    
     exits_df = pd.DataFrame(columns=["Confidence", "ExitNumber", "ExitName", "HitTime",
                             "HitRateOverAll", "HitRate", "Accuracy", "CacheAccuracy", "SamplesReached"])
     model_df = pd.DataFrame(columns=["Confidence", "ResponseTime", "CachedResponseTime",
                             "MTTR", "CachedMTTR", "Accuracy", "CachedAccuracy", "MTTRRatio"])
     batch_df = pd.DataFrame(columns=["BatchSize", "Confidence", "ResponseTime",
                             "CachedResponseTime", "MTTR", "CachedMTTR", "MTTRRatio"])
-    test_confidences = [.45]#[i/100 for i in range(0, 101, 2)]#
+    test_confidences = [i/100 for i in range(0, 101, 2)]#[.45]#
     test_batch_on_confidences = []  # [0.05, .45]
     
     with torch.no_grad():
-        for confidence in test_confidences:
-            mm = ModelMeter("Cached")
-            nc_mm = ModelMeter("Original")
-            ems = [ExitMeter(cached_layers[i] if i < num_exits else -1, i, mm) for i in range(num_exits + 1)]
-
+        if conf.distillation_test:
+            mm = ModelMeter()
+            nc_mm = ModelMeter()
             for images, labels in test_data_loader:
+
                 images = images.to(conf.test_device)
 
-                nc_out, nc_results = model.forward(images, conf, cache=False)
-                nc_mm.batch_update(nc_out, labels, nc_results)
-
-                out, results = model.forward(images, conf, cache=True, threshold=confidence)
-                
-                for i in range(num_exits + 1): 
-                    # print(len(results["idxs"]), i) 
-                    if i < len(results["idxs"]):
-                        ems[i].batch_update(labels, results, nc_out)
-                    
+                model.config_cache(
+                    enabled=True, threshold=-1, shrink=conf.shrink)
+                _, results = model(images)
+                out = results["outputs"][0]
+                results["end_time"] = results["hit_times"][0]
                 mm.batch_update(out, labels, results)
 
-            print(f"*********** Confidence: {confidence} ********")
-            print(mm)    
-            print(nc_mm)
+                model.config_cache(enabled=False, threshold=1)
+                nc_out, nc_results = model(images)
+                nc_mm.batch_update(nc_out, labels, nc_results)
+                print("original", len(nc_results["outputs"]))
 
-            model_df = model_df.append({
-                "Confidence": confidence,
-                "ResponseTime": round(nc_mm.time, 4),
-                "CachedResponseTime": round(mm.time, 4),
-                "MTTR": round(nc_mm.time/nc_mm.num_batch, 4),
-                "CachedMTTR": round(mm.samplewise_hit_time/mm.total, 4),
-                "Accuracy": round(100 * nc_mm.correct / nc_mm.total, 2),
-                "CacheAccuracy": -1 if sum([m.hit_count for m in ems][:-1]) == 0 else round(100 * sum([m.cached_correct for m in ems][:-1]) / sum([m.hit_count for m in ems][:-1]), 2),
-                "CachedAccuracy": round(100 * sum([m.correct for m in ems]) / mm.total, 2),
-                "MTTRRatio": round(100 * (mm.samplewise_hit_time)/mm.total/(nc_mm.time/mm.num_batch), 2),
-                "SamplesReachedEnd": ems[-1].num_sample,
-                "BatchesReachedEnd": ems[-1].num_batch
-            }, ignore_index=True)
+            print(
+                f'Original model accuracy: {100 * nc_correct / total:.2f} %, out of: {total} samples, conf: {nc_total_confidence/total}, with time: {nc_total_time}')
+            print(
+                f'Distilled model accuracy: {100 * correct / total:.2f} %, out of: {total} samples, conf: {total_confidence/total}, with time: {total_time}')
 
-            # print(
-            #     f'Models samplewise MTTR: Cached {sum(samplewise_hit_times)/total:.4f}, Non-cached: {nc_total_time/num_batch:.4f}, ratio:{100 * (sum(samplewise_hit_times)/total)/(nc_total_time/num_batch):.2f} %')
-            for i in range(num_exits+1):
-                em = ems[i]
-                print(em)
-                row = em.__dict__()
-                row.update({
+        else:
+            for confidence in test_confidences:
+                mm = ModelMeter("Cached")
+                nc_mm = ModelMeter("Original")
+                ems = [ExitMeter(cached_layers[i] if i < num_exits else -1, i, mm) for i in range(num_exits + 1)]
+
+                for images, labels in test_data_loader:
+                    images = images.to(conf.test_device)
+
+                    model.config_cache(
+                        enabled=False, threshold=confidence)
+                    nc_out, nc_results = model(images)
+                    nc_mm.batch_update(nc_out, labels, nc_results)
+
+                    model.config_cache(
+                        enabled=True, shrink=conf.shrink, threshold=confidence)
+                    _, results = model(images)
+                    out = torch.ones((labels.size(0), conf.num_classes)) * -1
+                    
+                    for i in range(num_exits + 1): 
+                        # print(len(results["idxs"]), i) 
+                        if results["idxs"][i].shape[0] == 0:
+                            break
+                        ems[i].batch_update(labels, results, nc_out)
+                        out[results["idxs"][i]] = results["outputs"][i].to('cpu')
+                        
+                    if -1 in out:
+                        print(out)
+                        raise Exception("Not all samples were resolved by the exits")
+                    mm.batch_update(out, labels, results)
+
+                print(f"*********** Confidence: {confidence} ********")
+                print(mm)    
+                print(nc_mm)
+
+                model_df = model_df.append({
                     "Confidence": confidence,
-                    "ExitNumber": i
-                })
-                exits_df = exits_df.append(row, ignore_index=True)
+                    "ResponseTime": round(nc_mm.time, 4),
+                    "CachedResponseTime": round(mm.time, 4),
+                    "MTTR": round(nc_mm.time/nc_mm.num_batch, 4),
+                    "CachedMTTR": round(mm.samplewise_hit_time/mm.total, 4),
+                    "Accuracy": round(100 * nc_mm.correct / nc_mm.total, 2),
+                    "CacheAccuracy": -1 if sum([m.hit_count for m in ems][:-1]) == 0 else round(100 * sum([m.cached_correct for m in ems][:-1]) / sum([m.hit_count for m in ems][:-1]), 2),
+                    "CachedAccuracy": round(100 * sum([m.correct for m in ems]) / mm.total, 2),
+                    "MTTRRatio": round(100 * (mm.samplewise_hit_time)/mm.total/(nc_mm.time/mm.num_batch), 2),
+                    "SamplesReachedEnd": ems[-1].num_sample,
+                    "BatchesReachedEnd": ems[-1].num_batch
+                }, ignore_index=True)
 
-            # for i in range(num_exits+1):
-            #     try:
-            #         print(
-            #             f'EXIT {i} | Acc: {100 * correct[i] / hit_counts[i]:.2f}%, Cache Acc: {100 * cached_correct[i] / hit_counts[i]:.2f}%, HR: {100 * hit_counts[i] / total:.2f}, Confidence: {cache_confidences[i]/num_sample_exit[i]:.3f}, out of: {total} (batch size: {conf.batch_size})')
-            #     except ZeroDivisionError:
-            #         pass
-            exits_df.astype({c: 'int32' for c in ["ExitNumber", "ExitName", "SamplesReached"]}, copy=False).to_csv(
-                f"{conf.report_dir}/exits.csv", index_label="Idx")
-            model_df.to_csv(
-                f"{conf.report_dir}/model.csv", index_label="Idx")
+                # print(
+                #     f'Models samplewise MTTR: Cached {sum(samplewise_hit_times)/total:.4f}, Non-cached: {nc_total_time/num_batch:.4f}, ratio:{100 * (sum(samplewise_hit_times)/total)/(nc_total_time/num_batch):.2f} %')
+                for i in range(num_exits+1):
+                    em = ems[i]
+                    print(em)
+                    row = em.__dict__()
+                    row.update({
+                        "Confidence": confidence,
+                        "ExitNumber": i
+                    })
+                    exits_df = exits_df.append(row, ignore_index=True)
+
+                # for i in range(num_exits+1):
+                #     try:
+                #         print(
+                #             f'EXIT {i} | Acc: {100 * correct[i] / hit_counts[i]:.2f}%, Cache Acc: {100 * cached_correct[i] / hit_counts[i]:.2f}%, HR: {100 * hit_counts[i] / total:.2f}, Confidence: {cache_confidences[i]/num_sample_exit[i]:.3f}, out of: {total} (batch size: {conf.batch_size})')
+                #     except ZeroDivisionError:
+                #         pass
+                exits_df.astype({c: 'int32' for c in ["ExitNumber", "ExitName", "SamplesReached"]}, copy=False).to_csv(
+                    f"{conf.report_dir}/exits.csv", index_label="Idx")
+                model_df.to_csv(
+                    f"{conf.report_dir}/model.csv", index_label="Idx")
 
 
 def place_experiment(conf, return_artifacts=False):
@@ -199,10 +232,13 @@ def place_experiment(conf, return_artifacts=False):
     print(f"Loading {conf.backbone_type} model for experiment")
     train_data = PlaceDataset(
         conf.data_root, conf.train_file, conf.classes_file, limit_per_class=70)
-    
+    train_data_loader = DataLoader(train_data,
+                                   conf.batch_size, True, num_workers=0)
     test_data = PlaceDataset(
         conf.data_root, conf.test_file, conf.classes_file, limit_per_class=30, skip_per_class=70)
-
+    test_data_loader = DataLoader(test_data,
+                                  conf.batch_size, True, num_workers=0)
+    print(len(test_data), len(train_data))
     criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
     ft_criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
 
@@ -212,18 +248,22 @@ def place_experiment(conf, return_artifacts=False):
 
     model = PlaceModel(backbone_model)
     return experiment(conf, model, criterion, ft_criterion,
-               train_data, test_data, return_artifacts)
+               train_data_loader, test_data_loader, return_artifacts)
 
 
 def face_experiment(conf, return_artifacts=False):
     """Preparing face model, criterion and data for caching procedure.
     """
     train_data = ImageDataset(conf.data_root, conf.train_file, classes_file=conf.classes_file, name_as_label=True)
-    test_data = ImageDataset(conf.data_root, conf.test_file, classes_file=conf.classes_file, name_as_label=True, allow_unknown=True)
-    
-    criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
-    ft_criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
+    train_data_loader = DataLoader(train_data,conf.batch_size, True, num_workers=0)
 
+    test_data = ImageDataset(conf.data_root, conf.test_file, classes_file=conf.classes_file, name_as_label=True)
+    test_data_loader = DataLoader(test_data,conf.batch_size, True, num_workers=0)
+    print(len(test_data), len(train_data))
+    
+    # criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
+    ft_criterion = torch.nn.KLDivLoss(log_target=True).cuda(conf.train_device)
+    criterion = torch.nn.MSELoss().cuda(conf.train_device)
     classifier_factory = ClassifierFactory(
         conf.classifier_type, conf.classifier_conf_file)
     classifier_loader = ClassifierModelLoader(classifier_factory)
@@ -234,11 +274,13 @@ def face_experiment(conf, return_artifacts=False):
     backbone_model = model_loader.load_model(conf.backbone_model_path)
     classifier_model = classifier_loader.load_model(conf.classifier_model_path)
 
-    model = FaceModel(backbone_model, classifier_model)
+    # model = FaceModel(backbone_model, classifier_model)
     # print(backbone_model)
     # exit()
-    return experiment(conf, model, criterion,
-               ft_criterion, train_data, test_data, return_artifacts)
+    return experiment(conf, backbone_model, criterion,
+               ft_criterion, train_data_loader, test_data_loader, return_artifacts)
+
+
 
 
 if __name__ == '__main__':
@@ -282,8 +324,6 @@ if __name__ == '__main__':
                       help="Trial number for reports.")
     conf.add_argument('--train_epochs', type=int, default=9,
                       help='The training epochs.')
-    conf.add_argument('--online_train_epochs', type=int, default=9,
-                      help='The online training epochs.')
     conf.add_argument('--fine_tune', type=int, default=9,
                       help='Fine tune the whole model after caches are trained')
     conf.add_argument('--step', type=str, default='2,5,7',
@@ -294,8 +334,6 @@ if __name__ == '__main__':
                       help='The save frequency for training state.')
     conf.add_argument('--batch_size', type=int, default=128,
                       help='The training batch size over all gpus.')
-    conf.add_argument('--test_batch_size', type=int, default=1,
-                      help='The testing batch size.')
     conf.add_argument('--momentum', type=float, default=0.9,
                       help='The momentum for sgd.')
     conf.add_argument('--log_dir', type=str, default='log',
@@ -312,8 +350,7 @@ if __name__ == '__main__':
                       help='List of names to train the classifier for')
     conf.add_argument('--num_classes', type=int, required=True,
                       help='Number of classes')
-    conf.add_argument('--run_server', action='store_true', default=False,
-                      help='Run server')
+    
     args = conf.parse_args()
     args.milestones = [int(num) for num in args.step.split(',')]
     if not os.path.exists(args.out_dir):
@@ -325,7 +362,7 @@ if __name__ == '__main__':
     args.report_dir = f"{args.out_dir}/reports/{args.exit_type}/{args.test_device}/{args.trial}"
     if not os.path.exists(args.report_dir):
         os.makedirs(args.report_dir)
-    elif not args.run_server:
+    else:
         confirm = input(
             f"The report dir {args.report_dir} already exists, override?[Y/n]")
         if confirm == "n":
@@ -333,6 +370,7 @@ if __name__ == '__main__':
             exit()
         else:
             print("Confirmed successfully, proceeding...")
+    
     tensorboardx_logdir = os.path.join(args.log_dir, args.tensorboardx_logdir)
     if os.path.exists(tensorboardx_logdir):
         shutil.rmtree(tensorboardx_logdir)
@@ -341,14 +379,12 @@ if __name__ == '__main__':
 
     logger.info('Start optimization.')
     logger.info(args)
-
     experiments = {
         "Face": face_experiment,
         "Place": place_experiment
     }
-
     if args.run_server:
-        server = Server(args, experiments[args.experiment](args, return_artifacts=True))
+        run_server(args, experiments[args.experiment](args, return_artifacts=True))
     else:
-        experiments[args.experiment](args)
+        experiment[args.experiment](args)
     logger.info('Optimization done!')

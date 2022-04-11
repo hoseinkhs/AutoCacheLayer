@@ -45,7 +45,7 @@ class AlexNet(nn.Module):
         self.cache_enabled = cache_enabled
         self.return_vectors = return_vectors
 
-        self.cached_layers = [4] 
+        self.cached_layers = [7, 9, 11] 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.features(x)
