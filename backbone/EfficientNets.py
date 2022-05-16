@@ -16,6 +16,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils import model_zoo
 from torch.nn import Sequential, BatchNorm1d, BatchNorm2d, Dropout, Module, Linear, ModuleList
+from backbone.CacheControl import CacheControl
 import time
 
 
@@ -772,7 +773,7 @@ class EfficientNet(nn.Module):
         >>> outputs = model(inputs)
     """
 
-    def __init__(self, out_h, out_w, feat_dim, blocks_args=None, global_params=None, cache_enabled=False, return_vectors=False, cache_exits = [], cache_hits = []):
+    def __init__(self, out_h, out_w, feat_dim, blocks_args=None, global_params=None):
         super().__init__()
         assert isinstance(blocks_args, list), 'blocks_args should be a list'
         assert len(blocks_args) > 0, 'block args must be greater than 0'
@@ -836,12 +837,7 @@ class EfficientNet(nn.Module):
             Linear(1280 * out_h * out_w, feat_dim), 
             #Linear(512 * out_h * out_w, feat_dim), 
             BatchNorm1d(feat_dim))
-        self.cache_exits = ModuleList(cache_exits)
-        self.cache_hits = cache_hits
-        self.shrink_on_hit = True
-        self.cache_threshold = None
-        self.cache_enabled = cache_enabled
-        self.return_vectors = return_vectors
+
         self.cached_layers = [3, 5]
 
     def set_swish(self, memory_efficient=True):
@@ -899,7 +895,7 @@ class EfficientNet(nn.Module):
 
         return endpoints
 
-    def extract_features(self, inputs):
+    def extract_features(self, inputs, cc=None, cache=False, return_vectors=None):
         """use convolution layer to extract feature .
 
         Args:
@@ -909,24 +905,8 @@ class EfficientNet(nn.Module):
             Output of the final convolution
             layer in the efficientnet model.
         """
-        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(inputs.shape[0])], "outputs": [], "vectors": []}
-        idxs = torch.arange(0, inputs.shape[0])
-        cache_active = self.cache_enabled and not self.return_vectors
+        
 
-        def process_exit(out, idxs, exit_idx):
-            if not cache_active:
-                return out, idxs, False
-            cache = self.cache_exits[exit_idx](out)
-            hit = self.cache_hits[exit_idx](cache, self.cache_threshold)
-            results["hit_times"].append(time.time())
-            results["outputs"].append(cache)
-            results["hits"].append(hit)
-            if self.shrink_on_hit:
-                no_hits = torch.logical_not(hit)
-                idxs = idxs[no_hits]
-                out = out[no_hits]
-            results["idxs"].append(idxs)
-            return out, idxs, len(idxs) == 0
         # Stem
         x = self._swish(self._bn0(self._conv_stem(inputs)))
         # Blocks
@@ -936,19 +916,23 @@ class EfficientNet(nn.Module):
                 drop_connect_rate *= float(idx) / len(self._blocks) # scale drop connect_rate
             x = block(x, drop_connect_rate=drop_connect_rate)
             if idx in self.cached_layers:
-                if self.return_vectors:
-                    results["vectors"].append(x)
-                if cache_active:
-                    x, idxs, should_exit = process_exit(x, idxs, self.cached_layers.index(idx))
+                if return_vectors:
+                    cc.vectors.append(x)
+                if cache:
+                    x, should_exit = cc.exit(x)
                     if should_exit:
-                        return x, results
-        results["idxs"].append(idxs)
+                        return x
+        
         # Head
         x = self._swish(self._bn1(self._conv_head(x)))
+        return x
+        
+        
 
-        return x, results
+    def set_exit_models(self, models):
+        self.cache_exits = ModuleList(models)
 
-    def forward(self, inputs):
+    def forward(self, x, args, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
         """EfficientNet's forward function.
            Calls extract_features to extract features, applies final linear layer, and returns logits.
 
@@ -958,8 +942,9 @@ class EfficientNet(nn.Module):
         Returns:
             Output of this model after processing.
         """
+        cc = CacheControl(args, x.shape, threshold, self.cache_exits, training, logger = logger)
         # Convolution layers
-        x, results = self.extract_features(inputs)
+        x = self.extract_features(x, cc, cache, return_vectors)
         '''
         # Pooling and final linear layer
         x = self._avg_pooling(x)
@@ -970,7 +955,7 @@ class EfficientNet(nn.Module):
         '''
         if x.shape[0]:
             x = self.output_layer(x)
-        return x, results
+        return x, cc
 
 
     def config_cache(self, enabled=None, shrink=None, threshold=None, exits = None, vectors=None, hits=None):

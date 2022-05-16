@@ -12,6 +12,8 @@ from PIL import Image
 import time
 import pathlib
 import sys
+from backbone.CacheControl import CacheControl
+
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
 
@@ -104,14 +106,14 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, cache_enabled=False, return_vectors=False, cache_exits = [], cache_hits = []):
+    def __init__(self, block, layers, num_classes=1000):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        #self.maxpool = nn.MaxPool2d(kernel_size=3, stride=1, padding=1) # previous stride is 2
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=1, padding=1) # previous stride is 2
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
@@ -130,28 +132,21 @@ class ResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
         
-        self.cache_exits = ModuleList(cache_exits)
-        self.cache_hits = cache_hits
-        self.shrink_on_hit = True
-        self.cache_threshold = None
-        self.cache_enabled = cache_enabled
-        self.return_vectors = return_vectors
-        
         self.layers = [
-        self.conv1,
-        self.bn1,
-        self.relu,
-        #self.maxpool,
+            self.conv1,
+            self.bn1,
+            self.relu,
+            #self.maxpool,
 
-        self.layer1,
-        self.layer2,
-        self.layer3,
-        self.layer4,
+            self.layer1,
+            self.layer2,
+            self.layer3,
+            self.layer4,
 
-        self.avgpool,
-        #x.view(x.size(0), ,
-        self.fc,
-        self.log_softmax
+            self.avgpool,
+            #x.view(x.size(0), ,
+            self.fc,
+            self.log_softmax
         ]
         self.cached_layers = [3] #range(len(self.layers))
 
@@ -172,7 +167,21 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        # x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return x, cc
         # x = self.conv1(x)
         # x = self.bn1(x)
         # x = self.relu(x)
@@ -186,56 +195,29 @@ class ResNet(nn.Module):
         # x = self.avgpool(x)
         # x = x.view(x.size(0), -1)
         # x = self.fc(x)
-        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(x.shape[0])], "outputs": [], "vectors": []}
-        idxs = torch.arange(0, x.shape[0])
-        cache_active = self.cache_enabled and not self.return_vectors
+        # if args:
+        #     cc = CacheControl(args, x.shape, threshold, self.cache_exits, training, logger = logger)
 
-        def process_exit(out, idxs, exit_idx):
-            if not cache_active:
-                return out, idxs, False
-            cache = self.cache_exits[exit_idx](out)
-            hit = self.cache_hits[exit_idx](cache, self.cache_threshold)
-            results["hit_times"].append(time.time())
-            results["outputs"].append(cache)
-            results["hits"].append(hit)
-            if self.shrink_on_hit:
-                no_hits = torch.logical_not(hit)
-                idxs = idxs[no_hits]
-                out = out[no_hits]
-            results["idxs"].append(idxs)
-            return out, idxs, len(idxs) == 0
-        exit_idx = 0
-        for i in range(len(self.layers)):
-            if i in self.cached_layers:
-                if self.return_vectors:
-                    results["vectors"].append(out)
-                if cache_active:
-                    out, idxs, should_exit = process_exit(out, idxs, exit_idx)
-                    if should_exit:
-                        return out, results
-                exit_idx += 1
-            if i == len(self.layers)-2:
-                out = out.view(out.size(0), -1)
-            out = self.layers[i](out if i else x)
-        results["outputs"].append(out)
-        results["hits"].append(torch.ones(out.shape[0]))
-        results["hit_times"].append(time.time())
-        return out, results
+        # for i in range(len(self.layers)):
+        #     if args and i in self.cached_layers:
+        #         if return_vectors:
+        #             cc.vectors.append(out)
+        #         if cache:
+        #             if logger:
+        #                 logger.info("CHECKING CACHE")
+        #             out, should_exit = cc.exit(out)
+        #             if should_exit:
+        #                 return out, cc.ret, cc.report()
+        #     out = self.layers[i](out if i else x)
+        # if args:
+        #     cc.end_time = time.time()
+        #     return out, cc.ret, cc.report()
+        # else:
+        #     return out, out, {}
 
         # return x
-    def config_cache(self, enabled=None, shrink=None, threshold=None, exits = None, vectors=None, hits=None):
-        if enabled is not None:
-            self.cache_enabled = enabled
-        if vectors is not None:
-            self.return_vectors = vectors
-        if shrink is not None:
-            self.shrink_on_hit = shrink
-        if threshold is not None:
-            self.cache_threshold = threshold
-        if exits is not None:
-            self.cache_exits = ModuleList(exits)
-        if hits is not None:
-            self.cache_hits = hits
+    def set_exit_models(self, models):
+        self.cache_exits = ModuleList(models)
 
 def resnet18(pretrained=False, **kwargs):
     """Constructs a ResNet-18 model.
@@ -295,7 +277,7 @@ def resnet152(pretrained=False, **kwargs):
 
 
 # th architecture to use
-def places_resnet50(arch = 'resnet50', **kwargs):
+def places_resnet(arch = 'resnet50', **kwargs):
     
     # load the pre-trained weights
     
@@ -312,6 +294,22 @@ def places_resnet50(arch = 'resnet50', **kwargs):
     model.load_state_dict(state_dict)
     return model
 
+def imagenet_resnet(arch = 'resnet50', **kwargs):
+    
+    # load the pre-trained weights
+    
+    model_file = os.path.join(pathlib.Path(__file__).parent.resolve(),'%s_places365.pth.tar' % arch)
+    if not os.access(model_file, os.W_OK):
+        print(model_file)
+        raise Exception("FILE NOT FOUND")
+        weight_url = 'http://places2.csail.mit.edu/models_places365/' + model_file
+        os.system('wget ' + weight_url)
+
+    model = resnet50(num_classes=365, **kwargs)# models.__dict__[arch](num_classes=365)
+    checkpoint = torch.load(model_file, map_location=lambda storage, loc: storage)
+    state_dict = {str.replace(k,'module.',''): v for k,v in checkpoint['state_dict'].items()}
+    model.load_state_dict(state_dict)
+    return model
 # model = places_resnet50()
 # model.eval()
 # # load the image transformer

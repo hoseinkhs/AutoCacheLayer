@@ -106,8 +106,8 @@ class MobileFaceNet(Module):
         ]
         self.cached_layers = [3, 5, 7] #range(len(self.layers))
     
-    def forward(self, x, args, cache=False, return_vectors=False, threshold = 1, training=False):
-        cc = CacheControl(args, x.shape, threshold, self.cache_exits, training)
+    def forward(self, x, args, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
+        cc = CacheControl(args, x.shape, threshold, self.cache_exits, training, logger = logger)
         for i in range(len(self.layers)):
             if i in self.cached_layers:
                 if return_vectors:
@@ -115,10 +115,10 @@ class MobileFaceNet(Module):
                 if cache:
                     out, should_exit = cc.exit(out)
                     if should_exit:
-                        return out, cc.ret, cc.report()
+                        return out, cc
             out = self.layers[i](out if i else x)
         cc.end_time = time.time()
-        return out, cc.ret, cc.report()
+        return out, cc
 
     def set_exit_models(self, models):
         self.cache_exits = ModuleList(models)

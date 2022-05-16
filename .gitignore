@@ -5,3 +5,11 @@ models
 *.pt
 *.tar
 *.txt
+
+out_dir/
+*.out
+out_old/
+log/
+server/
+*.ipynb
+*.csv

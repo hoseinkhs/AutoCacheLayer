@@ -8,8 +8,7 @@ from torch import Tensor
 from torch.nn import ModuleList
 from torch.jit.annotations import List
 import time
-
-
+from backbone.CacheControl import CacheControl
 __all__ = ['DenseNet', 'densenet121', 'densenet169', 'densenet201', 'densenet161']
 
 model_urls = {
@@ -141,8 +140,7 @@ class DenseNet(nn.Module):
     """
 
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
-                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=365, memory_efficient=False,
-                 cache_enabled=False, return_vectors=False, cache_exits = [], cache_hits = []):
+                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=365, memory_efficient=False):
 
         super(DenseNet, self).__init__()
 
@@ -178,7 +176,7 @@ class DenseNet(nn.Module):
         self.features.add_module('norm5', nn.BatchNorm2d(num_features))
         # Linear layer
         self.classifier = nn.Linear(num_features, num_classes)
-
+        self.logsoftmax =  nn.LogSoftmax(dim=1)
         # Official init from torch repo.
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -189,81 +187,72 @@ class DenseNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
         self.layers = list(self.features)
-        # print([type(l) for l in self.layers])
-        self.cache_exits = ModuleList(cache_exits)
-        self.cache_hits = cache_hits
-        self.shrink_on_hit = True
-        self.cache_threshold = None
-        self.cache_enabled = cache_enabled
-        self.return_vectors = return_vectors
+        print(self.layers, "*******", self.layers[10])
         self.cached_layers = [10] 
-    def forward(self, x):
-        results = {"start_time": time.time(), "hit_times": [], "hits":[], "idxs": [torch.arange(x.shape[0])], "outputs": [], "vectors": []}
-        idxs = torch.arange(0, x.shape[0])
-        def process_exit(out, idxs, exit_idx):
-            cache = self.cache_exits[exit_idx](out)
-            hit = self.cache_hits[exit_idx](cache, self.cache_threshold)
-            results["hit_times"].append(time.time())
-            results["outputs"].append(cache)
-            results["hits"].append(hit)
-            if self.shrink_on_hit:
-                no_hits = torch.logical_not(hit)
-                idxs = idxs[no_hits]
-                out = out[no_hits]
-            results["idxs"].append(idxs)
-            return out, idxs, len(idxs) == 0
-        exit_idx = 0
+    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
+        # if cache:
+        cc = CacheControl(args, x.shape, threshold, self.cache_exits, training, logger = logger)
+        
         for i in range(len(self.layers)):
-            out = self.layers[i](out if i else x)
             if i in self.cached_layers:
-                if self.return_vectors:
-                    results["vectors"].append(out)
-                if self.cache_enabled:
-                    out, idxs, should_exit = process_exit(out, idxs, exit_idx)
+                if return_vectors:
+                    cc.vectors.append(out)
+                if cache:
+                    if logger:
+                        logger.info("CHECKING CACHE")
+                    out, should_exit = cc.exit(out)
                     if should_exit:
-                        return out, results
-                exit_idx += 1
+                        return out, cc.ret, cc.report()
+            out = self.layers[i](out if i else x)
+        
         
         # features = self.features(x)
         out = F.relu(out, inplace=True)
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
+        
         out = self.classifier(out)
-        results["outputs"].append(out)
-        results["hits"].append(torch.ones(out.shape[0]))
-        results["hit_times"].append(time.time())
+        out = self.logsoftmax(out)
+
+        cc.exit(out, final=True)
         # print(self.return_vectors, self.cached_layers, len(self.layers), len(results["vectors"]))
-        return out, results
+        cc.end_time = time.time()
+        return out, cc.ret, cc.report()
+        # return out, out, {}
+    def set_exit_models(self, models):
+        self.cache_exits = ModuleList(models)
 
-    def config_cache(self, enabled=None, shrink=None, threshold=None, exits = None, vectors=None, hits=None):
-        if enabled is not None:
-            self.cache_enabled = enabled
-        if vectors is not None:
-            self.return_vectors = vectors
-        if shrink is not None:
-            self.shrink_on_hit = shrink
-        if threshold is not None:
-            self.cache_threshold = threshold
-        if exits is not None:
-            self.cache_exits = ModuleList(exits)
-        if hits is not None:
-            self.cache_hits = hits
+def fix(s):
+    s = s.split('.')
+    for i in range(len(s)):
+        if len(s[i]) == 1:
+            try:
+                int(s[i])
+                s[i-1] = s[i-1] + s[i]
+                del s[i]
+                break
+            except:
+                pass
+    return ".".join(s)
 
-def _load_state_dict(model, model_url, progress):
+def _load_state_dict(arch, model, model_url, progress):
     # '.'s are no longer allowed in module names, but previous _DenseLayer
     # has keys 'norm.1', 'relu.1', 'conv.1', 'norm.2', 'relu.2', 'conv.2'.
     # They are also in the checkpoints in model_urls. This pattern is used
     # to find such keys.
     pattern = re.compile(
         r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
-
-    state_dict = load_state_dict_from_url(model_url, progress=progress)
-    for key in list(state_dict.keys()):
-        res = pattern.match(key)
-        if res:
-            new_key = res.group(1) + res.group(2)
-            state_dict[new_key] = state_dict[key]
-            del state_dict[key]
+    model_file = '/home/amin/Projects/DL/FaceX-Zoo/backbone/places365/%s_places365.pth.tar' % arch
+    checkpoint = torch.load(model_file, map_location=lambda storage, loc: storage)
+    state_dict = {fix(str.replace(k,'module.','')): v for k,v in checkpoint['state_dict'].items()}
+    model.load_state_dict(state_dict)
+    # state_dict = load_state_dict_from_url(model_url, progress=progress)
+    # for key in list(state_dict.keys()):
+    #     res = pattern.match(key)
+    #     if res:
+    #         new_key = res.group(1) + res.group(2)
+    #         state_dict[new_key] = state_dict[key]
+    #         del state_dict[key]
     model.load_state_dict(state_dict)
 
 
@@ -271,7 +260,7 @@ def _densenet(arch, growth_rate, block_config, num_init_features, pretrained, pr
               **kwargs):
     model = DenseNet(growth_rate, block_config, num_init_features, **kwargs)
     if pretrained:
-        _load_state_dict(model, model_urls[arch], progress)
+        _load_state_dict(arch, model, model_urls[arch], progress)
     return model
 
 

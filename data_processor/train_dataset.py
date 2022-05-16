@@ -125,8 +125,9 @@ class ImageDataset(Dataset):
                 self.train_list.append((image_path, int(image_label)))
             line = train_file_buf.readline().strip()
         self.crop_eye = crop_eye
+        self.item_limit = 0
     def __len__(self):
-        return len(self.train_list)
+        return min(len(self.train_list), self.item_limit) if self.item_limit else len(self.train_list)
     def __getitem__(self, index):
         image_path, image_label = self.train_list[index]
         image_path = os.path.join(self.data_root, image_path)

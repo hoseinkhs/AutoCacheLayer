@@ -10,7 +10,8 @@ import yaml
 from classifier.MatchingHead import MatchingHead2
 sys.path.append('../../')
 from classifier.Dense2Layer import Dense2Layer, Dense2LayerSoftmax, Dense2LayerTemp, DenseEmbed
-from classifier.ConvDense import ConvDense
+from classifier.ConvDense import ConvDense, Conv2Dense
+from classifier.attention import Attention
 
 class ClassifierFactory:
     """Factory to produce classifier according the classifier_conf.yaml.
@@ -39,6 +40,12 @@ class ClassifierFactory:
             n_l1 = self.classifier_param['n_l1'] # height of the feature map before the final features.
             n_l2 = self.classifier_param['n_l2'] # width of the feature map before the final features.
             classifier = Dense2LayerTemp(feat_dim, n_l1, n_l2)
+        elif self.classifier_type[:9] == 'Attention':
+            N = self.classifier_param['N'] # dimension of the input features, e.g. 512.
+            in_channels = self.classifier_param['in_channels'] # height of the feature map before the final features.
+            in_features = self.classifier_param['in_features'] # height of the feature map before the final features.
+            out_features = self.classifier_param['out_features'] # height of the feature map before the final features.
+            classifier = Attention(in_channels, in_features, out_features, N)
         elif self.classifier_type[:11] == 'Dense2Layer':
             feat_dim = self.classifier_param['feat_dim'] # dimension of the input features, e.g. 512.
             n_l1 = self.classifier_param['n_l1'] # height of the feature map before the final features.
@@ -64,4 +71,12 @@ class ClassifierFactory:
             in_l2 = self.classifier_param['in_l2']
             out_l2 = self.classifier_param['out_l2']
             classifier = ConvDense(k_l1, in_ch_l1, out_ch_l1, s_l1, in_l2, out_l2)
+        elif self.classifier_type[:10] == 'Conv2Dense':
+            k = [self.classifier_param['k_l1'], self.classifier_param['k_l2']]
+            in_ch = [self.classifier_param['in_ch_l1'], self.classifier_param['in_ch_l2']]
+            out_ch = [self.classifier_param['out_ch_l1'], self.classifier_param['out_ch_l2']]
+            s = [self.classifier_param['s_l1'], self.classifier_param['s_l2']]
+            lin_in = self.classifier_param['in_l2']
+            lin_out = self.classifier_param['out_l2']
+            classifier = Conv2Dense(k, in_ch, out_ch, s, lin_in, lin_out)
         return classifier
