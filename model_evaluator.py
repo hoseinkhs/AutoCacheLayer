@@ -1,7 +1,7 @@
 
 
-def get_model_evaluator(conf, backbone, num_exit, exit_layer, get_loaders):
-    def train_epoch(cache_model, device, train_loader, optimizer, epoch, backbone):
+def get_model_evaluator(conf, backbone, num_exit, exit_layer, get_loaders, device):
+    def train_epoch(cache_model, train_loader, optimizer, epoch, backbone):
         loss_fn = torch.nn.KLDivLoss(log_target=True).cuda(device)
         cache_model.train()
         for batch_idx, (samples, label) in enumerate(train_loader):
@@ -18,7 +18,7 @@ def get_model_evaluator(conf, backbone, num_exit, exit_layer, get_loaders):
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(samples), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
-    def test_epoch(cache_model, device, test_loader, backbone):
+    def test_epoch(cache_model, test_loader, backbone):
         cache_model.eval()
         test_loss = 0
         correct = 0
@@ -36,13 +36,13 @@ def get_model_evaluator(conf, backbone, num_exit, exit_layer, get_loaders):
     def evaluate_model(model_cls):
         # "model_cls" is a class, need to instantiate
         train_loader, test_loader = get_loaders()
-        print(spc.__module__)
         exit_model = model_cls()
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        model.eval()
         exit_model.to(device)
-        model.to(device)
-        for p in model.parameters():
+
+        backbone.eval()
+        backbone.to(device)
+
+        for p in backbone.parameters():
                 p.requires_grad = False
         for p in exit_model.parameters():
             p.requires_grad = True
@@ -61,7 +61,7 @@ def get_model_evaluator(conf, backbone, num_exit, exit_layer, get_loaders):
                             criterion, epoch, loss_meter, conf,
                             exit_model, num_exit, idx, logger)
             lr_schedule.step()
-            accuracy = test_epoch(model, exit_model, device, test_loader)
+            accuracy = test_epoch(model, exit_model, test_loader)
             nni.report_intermediate_result(accuracy)
 
         # report final test result
