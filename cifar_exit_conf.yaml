@@ -1,0 +1,35 @@
+Resnet18:
+    Dense2LayerTemp_exit_6:
+        feat_dim: 8192
+        n_l1: 512
+        n_l2: 10
+    Dense2LayerTemp_exit_7:
+        feat_dim: 4096
+        n_l1: 512
+        n_l2: 10
+    Dense2LayerTemp_exit_8:
+        feat_dim: 2048
+        n_l1: 512
+        n_l2: 10
+    Dense2LayerTemp_exit_9:
+        feat_dim: 512
+        n_l1: 256
+        n_l2: 10
+
+Resnet50:
+    Dense2LayerTemp_exit_6:
+        feat_dim: 32768
+        n_l1: 512
+        n_l2: 10
+    Dense2LayerTemp_exit_7:
+        feat_dim: 16384
+        n_l1: 512
+        n_l2: 10
+    Dense2LayerTemp_exit_8:
+        feat_dim: 8192
+        n_l1: 512
+        n_l2: 10
+    Dense2LayerTemp_exit_9:
+        feat_dim: 2048
+        n_l1: 256
+        n_l2: 10
