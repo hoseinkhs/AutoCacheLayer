@@ -5,6 +5,8 @@ from nni.retiarii import model_wrapper
 import collections
 from test_protocol.utils.model_loader import ModelLoader
 from backbone.backbone_def import BackboneFactory
+from functools import partial
+
 class DepthwiseSeparableConv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
@@ -56,23 +58,23 @@ from torch.utils.data import DataLoader
 import nni.retiarii.strategy as strategy
 from nni.retiarii.evaluator import FunctionalEvaluator
 from nni.retiarii.experiment.pytorch import RetiariiExperiment, RetiariiExeConfig
-from model_evaluator import get_model_evaluator
+from model_evaluator import evaluate_model
 
 search_strategy = strategy.Random(dedup=True)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-conf_dict = {"train_device": device, "num_classes": 10, 'backbone_type': "Resnet50"}
+conf_dict = {"train_device": device, "train_epochs": 10, "num_classes": 10, 'backbone_type': "Resnet50", "lr":0.1, "momentum": 0.9, "milestones": [10, 13, 16]}
 conf = collections.namedtuple("ConfObject", conf_dict.keys())(*conf_dict.values())
 
-backbone_factory = BackboneFactory("Resnet50", "backbone_conf.yaml")
 
-model_loader = ModelLoader(backbone_factory)
-        # model = backbone_factory.get_backbone()
-weights_file = f'models/cifar10/resnet50.pt'
 
-backbone = backbone_factory.get_backbone()
-backbone.load_state_dict(torch.load(weights_file))
-backbone.eval()
-backbone.to(device)
+def get_backbone():
+    backbone_factory = BackboneFactory("Resnet50", "backbone_conf.yaml")
+    model_loader = ModelLoader(backbone_factory)
+    weights_file = f'models/cifar10/resnet50.pt'
+    backbone = backbone_factory.get_backbone()
+    backbone.load_state_dict(torch.load(weights_file))
+    return backbone
+
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 def get_loaders():
@@ -86,7 +88,7 @@ for num_exit in range(1): #[3, 0, 1, 2]:#
     if True: #pid == 0:
         spc = get_model_space()
         exit_layer = num_exit #cached_layers[num_exit]
-        evaluator = get_model_evaluator(conf, backbone, num_exit, exit_layer, get_loaders, device)
+        evaluator = partial(evaluate_model, conf, get_backbone, num_exit, exit_layer, get_loaders, device)
         evaluator = FunctionalEvaluator(evaluator)
         exp = RetiariiExperiment(spc, evaluator, [], search_strategy)
         exp_config = RetiariiExeConfig('local')
@@ -94,7 +96,7 @@ for num_exit in range(1): #[3, 0, 1, 2]:#
         exp_config.max_trial_number = 1   # spawn 4 trials at most
         exp_config.trial_concurrency = 2  # will run two trials concurrently
         exp_config.trial_gpu_number = 1
-        exp_config.pickle_size_limit = 32768
+        # exp_config.pickle_size_limit = 65536
         exp_config.training_service.use_active_gpu = True
         # exp_config.execution_engine = 'base'
         # exp_config.export_formatter = 'code'
