@@ -18,9 +18,13 @@ class PlaceModel(torch.nn.Module):
         for param in self.backbone.parameters():
             param.requires_grad = False
         self.version = 0
-
-    def forward(self, data, conf, logger=None,*args, **kwargs):
-        feat, cc = self.backbone.forward(data, conf, logger=logger, *args, **kwargs)
+    def set_defaults(self, *args):
+        self.backbone.set_defaults(*args)
+    def reset_defaults(self):
+        self.backbone.reset_defaults()
+    def forward(self, data, conf=None, logger=None,*args, **kwargs):
+        r = self.backbone.forward(data, conf, logger=logger, *args, **kwargs)
+        feat, cc = r
         return cc.ret, cc.report()
 
 class FaceModel(torch.nn.Module):
@@ -45,7 +49,10 @@ class FaceModel(torch.nn.Module):
         for param in self.classifier.parameters():
             param.requires_grad = False
         self.version = 0
-
+    def set_defaults(self, *args):
+        self.backbone.set_defaults(*args)
+    def reset_defaults(self):
+        self.backbone.reset_defaults()
     def forward(self, data, conf, logger=None,*args, **kwargs):
         feat, cc = self.backbone.forward(data, conf, logger=logger, *args, **kwargs)
         if feat.size(0):

@@ -15,7 +15,8 @@ from backbone.places365.resnet2 import resnet50 as places_resnet50
 from backbone.places365.alexnet import places_alexnet
 from backbone.places365.densenet import places_densenet
 
-from backbone.cifar.resnet import resnet18 as cifar10_resnet18, resnet50 as cifar10_resnet50
+from backbone.cifar10.resnet import resnet18 as cifar10_resnet18, resnet50 as cifar10_resnet50
+from backbone.cifar100.resnet import resnet18 as cifar100_resnet18, resnet50 as cifar100_resnet50
 class BackboneFactory:
     """Factory to produce backbone according the backbone_conf.yaml.
     
@@ -23,17 +24,19 @@ class BackboneFactory:
         backbone_type(str): which backbone will produce.
         backbone_param(dict):  parsed params and it's value. 
     """
-    def __init__(self, backbone_type, backbone_conf_file):
+    def __init__(self, backbone_type, backbone_conf_file, experiment=None):
         self.backbone_type = backbone_type
+        self.experiment = experiment
         with open(backbone_conf_file) as f:
             backbone_conf = yaml.load(f, Loader=yaml.FullLoader)
             self.backbone_param = backbone_conf[backbone_type]
 
     def get_backbone(self):
+        print(self.backbone_type, self.experiment)
         if self.backbone_type == "Resnet18":
-            backbone = cifar10_resnet18(num_classes=10)
+            backbone = cifar10_resnet18() if self.experiment == "Cifar10" else cifar100_resnet18()
         elif self.backbone_type == "Resnet50":
-            backbone = cifar10_resnet50(num_classes=10)
+            backbone = cifar10_resnet50() if self.experiment == "Cifar10" else cifar100_resnet50()
         elif self.backbone_type == "PlacesResnet50":
             backbone = places_resnet50()
         elif self.backbone_type == "PlacesAlexNet":

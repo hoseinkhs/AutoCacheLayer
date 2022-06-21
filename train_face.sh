@@ -8,19 +8,21 @@ backbone="MobileFaceNet"
 classifier_type="Dense2Layer"
 exit_type="Dense2LayerTemp"
 exit_epoch=19
-trial="attention"
+trial="20-flops"
+experiment="Face"
 # --run_server \
+# --search_cache_models \
 python train.py \
-    --experiment "Face" \
+    --experiment "${experiment}" \
     --shrink \
     --num_classes ${XD} \
     --fine_tune 0 \
     --trial "${trial}" \
-    --train_epochs 20 \
+    --train_epochs 0 \
     --online_train_epochs 20 \
     --train_device "cuda:0" \
     --test_device "cuda:0" \
-    --exit_model_path "./out_dir/${backbone}/exits2/${exit_type}/" \
+    --exit_model_path "./out_dir/${experiment}/${backbone}/exits/${exit_type}/" \
     --data_root "./data/test/lfw/images_cropped" \
     --train_file "./data/test/lfw/${XD}_names_img_list_train.txt" \
     --test_file "./data/test/lfw/${XD}_names_img_list_test.txt" \
@@ -34,7 +36,7 @@ python train.py \
     --exit_type "${exit_type}" \
     --exit_conf_file "./exit_conf.yaml" \
     --lr 0.1 \
-    --out_dir "out_dir/${backbone}" \
+    --out_dir "out_dir/${experiment}/${backbone}" \
     --step "10, 13, 16" \
     --print_freq 200 \
     --save_freq 3000 \

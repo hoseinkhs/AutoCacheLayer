@@ -1,35 +1,73 @@
-Resnet18:
-    Dense2LayerTemp_exit_6:
-        feat_dim: 8192
-        n_l1: 512
-        n_l2: 10
-    Dense2LayerTemp_exit_7:
-        feat_dim: 4096
-        n_l1: 512
-        n_l2: 10
-    Dense2LayerTemp_exit_8:
-        feat_dim: 2048
-        n_l1: 512
-        n_l2: 10
-    Dense2LayerTemp_exit_9:
-        feat_dim: 512
-        n_l1: 256
-        n_l2: 10
+# Note that the implementation of Resnets for CIFAR10 and CIFAR100 are different as we have pulled them from different repositories
+Cifar10:
+    Resnet18:
+        Dense2LayerTemp_exit_3:
+            feat_dim: 16384
+            n_l1: 512
+            n_l2: 10
+        Dense2LayerTemp_exit_4:
+            feat_dim: 16384
+            n_l1: 512
+            n_l2: 10
+        Dense2LayerTemp_exit_5:
+            feat_dim: 8192
+            n_l1: 512
+            n_l2: 10
+        Dense2LayerTemp_exit_6:
+            feat_dim: 4096
+            n_l1: 256
+            n_l2: 10
 
-Resnet50:
-    Dense2LayerTemp_exit_6:
-        feat_dim: 32768
-        n_l1: 512
-        n_l2: 10
-    Dense2LayerTemp_exit_7:
-        feat_dim: 16384
-        n_l1: 512
-        n_l2: 10
-    Dense2LayerTemp_exit_8:
-        feat_dim: 8192
-        n_l1: 512
-        n_l2: 10
-    Dense2LayerTemp_exit_9:
-        feat_dim: 2048
-        n_l1: 256
-        n_l2: 10
+    Resnet50:
+        Dense2LayerTemp_exit_3:
+            feat_dim: 16384
+            n_l1: 512
+            n_l2: 10
+        Dense2LayerTemp_exit_4:
+            feat_dim: 65536
+            n_l1: 512
+            n_l2: 10
+        Dense2LayerTemp_exit_5:
+            feat_dim: 32768
+            n_l1: 512
+            n_l2: 10
+        Dense2LayerTemp_exit_6:
+            feat_dim: 16384
+            n_l1: 256
+            n_l2: 10
+Cifar100:
+    Resnet18:
+        Dense2LayerTemp_exit_0:
+            feat_dim: 65536
+            n_l1: 512
+            n_l2: 100
+        Dense2LayerTemp_exit_1:
+            feat_dim: 65536
+            n_l1: 512
+            n_l2: 100
+        Dense2LayerTemp_exit_2:
+            feat_dim: 32768
+            n_l1: 512
+            n_l2: 100
+        Dense2LayerTemp_exit_3:
+            feat_dim: 16384
+            n_l1: 256
+            n_l2: 100
+
+    Resnet50:
+        Dense2LayerTemp_exit_0:
+            feat_dim: 65536
+            n_l1: 512
+            n_l2: 100
+        Dense2LayerTemp_exit_1:
+            feat_dim: 262144
+            n_l1: 512
+            n_l2: 100
+        Dense2LayerTemp_exit_2:
+            feat_dim: 131072
+            n_l1: 512
+            n_l2: 100
+        Dense2LayerTemp_exit_3:
+            feat_dim: 65536
+            n_l1: 256
+            n_l2: 100

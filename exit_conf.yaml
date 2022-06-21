@@ -1,260 +1,258 @@
-EfficientNet:
-    Dense2Layer_exit_1:
-        feat_dim: 75264
-        n_l1: 150
-        n_l2: 127
-    Dense2Layer_exit_3:
-        feat_dim: 31360
-        n_l1: 256
-        n_l2: 127
-    Dense2Layer_exit_5:
-        feat_dim: 15680
-        n_l1: 256
-        n_l2: 127
+Face:
+    EfficientNet:
+        Dense2Layer_exit_1:
+            feat_dim: 75264
+            n_l1: 150
+            n_l2: 127
+        Dense2Layer_exit_3:
+            feat_dim: 31360
+            n_l1: 256
+            n_l2: 127
+        Dense2Layer_exit_5:
+            feat_dim: 15680
+            n_l1: 256
+            n_l2: 127
 
-    Dense2LayerTemp_exit_1:
-        feat_dim: 75264
-        n_l1: 150
-        n_l2: 127
-    Dense2LayerTemp_exit_3:
-        feat_dim: 31360
-        n_l1: 256
-        n_l2: 127
-    Dense2LayerTemp_exit_5:
-        feat_dim: 15680
-        n_l1: 256
-        n_l2: 127
+        Dense2LayerTemp_exit_1:
+            feat_dim: 75264
+            n_l1: 150
+            n_l2: 127
+        Dense2LayerTemp_exit_3:
+            feat_dim: 31360
+            n_l1: 256
+            n_l2: 127
+        Dense2LayerTemp_exit_5:
+            feat_dim: 15680
+            n_l1: 256
+            n_l2: 127
 
-    ConvDense_exit_1:
-        k_l1: 5
-        in_ch_l1: 24
-        out_ch_l1: 3
-        s_l1: 1
-        in_l2: 8112
-        out_l2: 127
+        ConvDense_exit_1:
+            k_l1: 5
+            in_ch_l1: 24
+            out_ch_l1: 3
+            s_l1: 1
+            in_l2: 8112
+            out_l2: 127
 
-    ConvDense_exit_3:
-        k_l1: 3
-        in_ch_l1: 40
-        out_ch_l1: 20
-        s_l1: 1
-        in_l2: 13520
-        out_l2: 127
+        ConvDense_exit_3:
+            k_l1: 3
+            in_ch_l1: 40
+            out_ch_l1: 20
+            s_l1: 1
+            in_l2: 13520
+            out_l2: 127
 
-    ConvDense_exit_5:
-        k_l1: 3
-        in_ch_l1: 80
-        out_ch_l1: 40
-        s_l1: 1
-        in_l2: 5760
-        out_l2: 127
+        ConvDense_exit_5:
+            k_l1: 3
+            in_ch_l1: 80
+            out_ch_l1: 40
+            s_l1: 1
+            in_l2: 5760
+            out_l2: 127
 
-MobileFaceNet:
-    Attention_exit_3:
-        N: 3
-        in_channels: 64
-        in_features: 256
-        out_features: 127
-    Attention_exit_5:
-        N: 2
-        in_channels: 128
-        in_features: 512
-        out_features: 127
-    Attention_exit_7:
-        N: 1
-        in_channels: 128
-        in_features: 1152 
-        out_features: 127
-    Dense2Layer_exit_3:
-        feat_dim: 50176
-        n_l1: 256
-        n_l2: 127
-    Dense2Layer_exit_5:
-        feat_dim: 25088
-        n_l1: 256
-        n_l2: 127
-    Dense2Layer_exit_7:
-        feat_dim: 6272
-        n_l1: 256
-        n_l2: 127
+    MobileFaceNet:
+        Attention_exit_3:
+            N: 3
+            in_channels: 64
+            in_features: 256
+            out_features: 127
+        Attention_exit_5:
+            N: 2
+            in_channels: 128
+            in_features: 512
+            out_features: 127
+        Attention_exit_7:
+            N: 1
+            in_channels: 128
+            in_features: 1152 
+            out_features: 127
+        Dense2Layer_exit_3:
+            feat_dim: 50176
+            n_l1: 256
+            n_l2: 127
+        Dense2Layer_exit_5:
+            feat_dim: 25088
+            n_l1: 256
+            n_l2: 127
+        Dense2Layer_exit_7:
+            feat_dim: 6272
+            n_l1: 256
+            n_l2: 127
 
-    DenseEmbed_exit_3:
-        feat_dim: 50176
-        n_l1: 1024
-        n_l2: 512
-    DenseEmbed_exit_5:
-        feat_dim: 25088
-        n_l1: 1024
-        n_l2: 512
-    DenseEmbed_exit_7:
-        feat_dim: 6272
-        n_l1: 1024
-        n_l2: 512
+        DenseEmbed_exit_3:
+            feat_dim: 50176
+            n_l1: 1024
+            n_l2: 512
+        DenseEmbed_exit_5:
+            feat_dim: 25088
+            n_l1: 1024
+            n_l2: 512
+        DenseEmbed_exit_7:
+            feat_dim: 6272
+            n_l1: 1024
+            n_l2: 512
 
-    Dense2LayerTemp_exit_3:
-        feat_dim: 50176
-        n_l1: 256
-        n_l2: 127
-    Dense2LayerTemp_exit_5:
-        feat_dim: 25088
-        n_l1: 256
-        n_l2: 127
-    Dense2LayerTemp_exit_7:
-        feat_dim: 6272
-        n_l1: 256
-        n_l2: 127
+        Dense2LayerTemp_exit_3:
+            feat_dim: 50176
+            n_l1: 256
+            n_l2: 127
+        Dense2LayerTemp_exit_5:
+            feat_dim: 25088
+            n_l1: 256
+            n_l2: 127
+        Dense2LayerTemp_exit_7:
+            feat_dim: 6272
+            n_l1: 256
+            n_l2: 127
 
-PlacesAlexNet:
-    Attention_exit_7:
-        N: 2
-        in_channels: 384
-        in_features: 1536
-        out_features: 365
-    Attention_exit_9:
-        N: 2
-        in_channels: 256
-        in_features: 1024
-        out_features: 365
-    Attention_exit_11:
-        N: 1
-        in_channels: 256
-        in_features: 9216
-        out_features: 365
-    Dense2Layer_exit_1:
-        feat_dim: 64896 #1048576
-        n_l1: 512
-        n_l2: 365
-    Dense2Layer_exit_4:
-        feat_dim: 25088
-        n_l1: 512
-        n_l2: 365
-    Dense2Layer_exit_7:
-        feat_dim: 6272
-        n_l1: 512
-        n_l2: 365
+Place:
+    AlexNet:
+        Attention_exit_7:
+            N: 2
+            in_channels: 384
+            in_features: 1536
+            out_features: 365
+        Attention_exit_9:
+            N: 2
+            in_channels: 256
+            in_features: 1024
+            out_features: 365
+        Attention_exit_11:
+            N: 1
+            in_channels: 256
+            in_features: 9216
+            out_features: 365
+        Dense2Layer_exit_1:
+            feat_dim: 64896 #1048576
+            n_l1: 512
+            n_l2: 365
+        Dense2Layer_exit_4:
+            feat_dim: 25088
+            n_l1: 512
+            n_l2: 365
+        Dense2Layer_exit_7:
+            feat_dim: 6272
+            n_l1: 512
+            n_l2: 365
 
-    Dense2LayerTemp_exit_1:
-        feat_dim: 193600 #1048576
-        n_l1: 1024
-        n_l2: 365
-    Dense2LayerTemp_exit_4:
-        feat_dim: 139968
-        n_l1: 512
-        n_l2: 365
-    Dense2LayerTemp_exit_7:
-        feat_dim: 6272
-        n_l1: 512
-        n_l2: 365
+        Dense2LayerTemp_exit_1:
+            feat_dim: 193600 #1048576
+            n_l1: 1024
+            n_l2: 365
+        Dense2LayerTemp_exit_4:
+            feat_dim: 139968
+            n_l1: 512
+            n_l2: 365
+        Dense2LayerTemp_exit_7:
+            feat_dim: 6272
+            n_l1: 512
+            n_l2: 365
 
-    ConvDense_exit_1:
-        k_l1: 5
-        in_ch_l1: 64
-        out_ch_l1: 128
-        s_l1: 1
-        in_l2: 332928
-        out_l2: 365
+        ConvDense_exit_1:
+            k_l1: 5
+            in_ch_l1: 64
+            out_ch_l1: 128
+            s_l1: 1
+            in_l2: 332928
+            out_l2: 365
 
-    ConvDense_exit_4:
-        k_l1: 3
-        in_ch_l1: 192
-        out_ch_l1: 20
-        s_l1: 1
-        in_l2: 12500
-        out_l2: 365
+        ConvDense_exit_4:
+            k_l1: 3
+            in_ch_l1: 192
+            out_ch_l1: 20
+            s_l1: 1
+            in_l2: 12500
+            out_l2: 365
 
-    ConvDense_exit_7:
-        k_l1: 3
-        in_ch_l1: 384
-        out_ch_l1: 20
-        s_l1: 1
-        in_l2: 2420
-        out_l2: 365
-    ConvDense_exit_9:
-        k_l1: 3
-        in_ch_l1: 256
-        out_ch_l1: 20
-        s_l1: 1
-        in_l2: 2420
-        out_l2: 365
-    ConvDense_exit_11:
-        k_l1: 3
-        in_ch_l1: 256
-        out_ch_l1: 20
-        s_l1: 1
-        in_l2: 2420
-        out_l2: 365
+        ConvDense_exit_7:
+            k_l1: 3
+            in_ch_l1: 384
+            out_ch_l1: 20
+            s_l1: 1
+            in_l2: 2420
+            out_l2: 365
+        ConvDense_exit_9:
+            k_l1: 3
+            in_ch_l1: 256
+            out_ch_l1: 20
+            s_l1: 1
+            in_l2: 2420
+            out_l2: 365
+        ConvDense_exit_11:
+            k_l1: 3
+            in_ch_l1: 256
+            out_ch_l1: 20
+            s_l1: 1
+            in_l2: 2420
+            out_l2: 365
+    DenseNet:
+        Dense2LayerTemp_exit_4:
+            feat_dim: 602110 #1048576
+            n_l1: 1024
+            n_l2: 365
+        Dense2LayerTemp_exit_6:
+            feat_dim: 139968
+            n_l1: 512
+            n_l2: 365
+        Dense2LayerTemp_exit_8:
+            feat_dim: 6272
+            n_l1: 512
+            n_l2: 365
+        Dense2LayerTemp_exit_10:
+            feat_dim: 51744
+            n_l1: 4096
+            n_l2: 365
+        ConvDense_exit_10:
+            k_l1: 3
+            in_ch_l1: 1056
+            out_ch_l1: 512
+            s_l1: 1
+            in_l2: 12800
+            out_l2: 365
+    Resnet50:
+        Dense2LayerTemp_exit_4:
+            feat_dim: 200704 #1048576
+            n_l1: 1024
+            n_l2: 365
+        Dense2LayerTemp_exit_6:
+            feat_dim: 8192
+            n_l1: 512
+            n_l2: 365
+        Dense2LayerTemp_exit_8:
+            feat_dim: 6272
+            n_l1: 512
+            n_l2: 365
+        Dense2LayerTemp_exit_10:
+            feat_dim: 51744
+            n_l1: 4096
+            n_l2: 365
+        ConvDense_exit_4:
+            k_l1: 3
+            in_ch_l1: 64
+            out_ch_l1: 32
+            s_l1: 1
+            in_l2: 93312
+            out_l2: 365
+        Conv2Dense_exit_4:
+            k_l1: 3
+            in_ch_l1: 64
+            out_ch_l1: 48
+            s_l1: 1
+            k_l2: 3
+            in_ch_l2: 48
+            out_ch_l2: 32
+            s_l2: 1
+            in_l2: 86528
+            out_l2: 365
 
-
-PlacesDenseNet:
-    Dense2LayerTemp_exit_4:
-        feat_dim: 602110 #1048576
-        n_l1: 1024
-        n_l2: 365
-    Dense2LayerTemp_exit_6:
-        feat_dim: 139968
-        n_l1: 512
-        n_l2: 365
-    Dense2LayerTemp_exit_8:
-        feat_dim: 6272
-        n_l1: 512
-        n_l2: 365
-    Dense2LayerTemp_exit_10:
-        feat_dim: 51744
-        n_l1: 4096
-        n_l2: 365
-    ConvDense_exit_10:
-        k_l1: 3
-        in_ch_l1: 1056
-        out_ch_l1: 512
-        s_l1: 1
-        in_l2: 12800
-        out_l2: 365
-
-
-PlacesResnet50:
-    Dense2LayerTemp_exit_4:
-        feat_dim: 200704 #1048576
-        n_l1: 1024
-        n_l2: 365
-    Dense2LayerTemp_exit_6:
-        feat_dim: 8192
-        n_l1: 512
-        n_l2: 365
-    Dense2LayerTemp_exit_8:
-        feat_dim: 6272
-        n_l1: 512
-        n_l2: 365
-    Dense2LayerTemp_exit_10:
-        feat_dim: 51744
-        n_l1: 4096
-        n_l2: 365
-    ConvDense_exit_4:
-        k_l1: 3
-        in_ch_l1: 64
-        out_ch_l1: 32
-        s_l1: 1
-        in_l2: 93312
-        out_l2: 365
-    Conv2Dense_exit_4:
-        k_l1: 3
-        in_ch_l1: 64
-        out_ch_l1: 48
-        s_l1: 1
-        k_l2: 3
-        in_ch_l2: 48
-        out_ch_l2: 32
-        s_l2: 1
-        in_l2: 86528
-        out_l2: 365
-
-    Conv2Dense_exit_6:
-        k_l1: 3
-        in_ch_l1: 512
-        out_ch_l1: 48
-        s_l1: 1
-        k_l2: 3
-        in_ch_l2: 48
-        out_ch_l2: 32
-        s_l2: 1
-        in_l2: 18432
-        out_l2: 365
+        Conv2Dense_exit_6:
+            k_l1: 3
+            in_ch_l1: 512
+            out_ch_l1: 48
+            s_l1: 1
+            k_l2: 3
+            in_ch_l2: 48
+            out_ch_l2: 32
+            s_l2: 1
+            in_l2: 18432
+            out_l2: 365

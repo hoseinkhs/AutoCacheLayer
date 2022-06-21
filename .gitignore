@@ -13,3 +13,4 @@ log/
 server/
 *.ipynb
 *.csv
+*.eps

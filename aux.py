@@ -1,6 +1,6 @@
 import torch
 import os
-def pr(a, b, p=2):
+def pr(a, b, p=6):
         return round(100 * a/b, p) if a > 0 else -1
         
 def get_lr(optimizer):
@@ -21,6 +21,8 @@ def train_one_epoch(data_loader, model, optimizer, criterion, cur_epoch, loss_me
         with torch.no_grad():
             outputs, results = model.forward(images, conf, return_vectors=True, logger= logger, training=True)
         vectors = results["vectors"]
+        # for v in vectors:
+        #     print("Hidden shape:", v.shape)
         early_pred = exit_model(vectors[num_exit])
         loss = criterion(early_pred, outputs) 
         # loss = criterion(early_pred, outputs, labels)

@@ -9,8 +9,10 @@ class ModelMeter:
         self.time = 0
         self.confidence = 0
         self.samplewise_hit_time = 0
+        self.flops = 0
+        self.cuda_time = 0 
 
-    def batch_update(self, out, labels, results):
+    def batch_update(self, out, labels, results, flops):
         confidence, predicted = torch.max(out, 1)
         predicted = predicted.to('cpu')
         self.correct += (predicted == labels).sum().item()
@@ -18,6 +20,9 @@ class ModelMeter:
         self.total += labels.size(0)
         self.time += results["end_time"] - results["start_time"]
         self.num_batch += 1
+        self.flops+=flops
+        self.cuda_time += results["cuda_time"]
+
     
     def accuracy(self):
         return pr(self.correct, self.total)
@@ -26,7 +31,7 @@ class ModelMeter:
         return pr(self.confidence, self.total)
 
     def mttr(self):
-        return round(self.time / self.num_batch, 4) if self.num_batch else -1
+        return round(self.time / self.num_batch, 6) if self.num_batch else -1
 
     def cached_mttr(self):
         return round(self.samplewise_hit_time / self.total, 4) if self.total else -1
@@ -48,6 +53,8 @@ class ExitMeter:
         self.hit_time = 0
         self.confidence = 0
         self.num_sample = 0
+        self.cache_dropped = 0
+        self.cache_raised = 0 
 
     def batch_update(self, labels, results, nc_out):
         i = self.exit_id
@@ -60,8 +67,12 @@ class ExitMeter:
 
         num_hits = torch.sum(hits).item()
         hit_time = (results["hit_times"][i] - results["start_time"])
-
-        confidence, predicted = torch.max(results["outputs"][i], 1)
+        try:
+            confidence, predicted = torch.max(results["outputs"][i], 1)
+        except:
+            print(i)
+            print(results["outputs"][i])
+            print(results["idxs"])
         predicted = predicted.to('cpu')
 
         _, nc_predicted = torch.max(nc_out, 1)
@@ -69,8 +80,21 @@ class ExitMeter:
 
 
         self.confidence += torch.exp(confidence).sum().item()
-        self.correct += (predicted[hits] == labels[idxs][hits]).sum().item()
-        self.cached_correct += (predicted[hits] == nc_predicted[idxs][hits]).sum().item()
+        try:
+            self.correct += (predicted[hits] == labels[idxs][hits]).sum().item()
+            self.cached_correct += (predicted[hits] == nc_predicted[idxs][hits]).sum().item()
+            self.cache_dropped += torch.logical_and(predicted[hits] != nc_predicted[idxs][hits], labels[idxs][hits] == nc_predicted[idxs][hits]).sum().item()
+            self.cache_raised +=  torch.logical_and(predicted[hits] != nc_predicted[idxs][hits], labels[idxs][hits] == predicted[hits]).sum().item()
+        except:
+            pass
+            # print(predicted.shape)
+            # print(hits.shape)
+            # print(predicted[hits].shape)
+            # print(idxs)
+            # print(labels[idxs].shape)
+            # print(labels[idxs][hits].shape)
+
+        
 
         self.hit_count += num_hits
         self.hit_time += hit_time
@@ -95,11 +119,16 @@ class ExitMeter:
         return pr(self.hit_time, self.mm.time)
     def hit_time_ratio(self, meter):
         return pr(self.hit_time, meter.time)
+
+    def accuracy_effect(self):
+        return round((self.cache_raised - self.cache_dropped) / self.num_sample * 100, 2) if self.num_sample else -1
+
     def __str__(self):
         return f"Cache model {self.name}, Exit#{self.exit_id}: \n \
         Hit rate: {self.hit_rate()} | {self.hit_count} hits | {self.num_sample} samples | {self.num_batch} batches \n \
         Accuracy: {self.accuracy()} | CA: {self.cache_accuracy()} | Conf: {self.mean_confidence()} \n \
-        Time:  {self.time_ratio()}% | OvTime: {self.hit_time}"
+        Time:  {self.time_ratio()}% | OvTime: {self.hit_time}\n \
+        CacheDropped: {self.cache_dropped} | CacheRaised: {self.cache_raised}"
 
     def __dict__(self):
         return {
@@ -110,19 +139,22 @@ class ExitMeter:
             "Accuracy": self.accuracy(),
             "CacheAccuracy": self.cache_accuracy(),
             "SamplesReached": self.num_sample,
-            "BatchesReached": self.num_batch
+            "BatchesReached": self.num_batch,
+            "CacheDroppedAcc": self.cache_dropped,
+            "CacheRaisedAcc": self.cache_raised,
+            "CacheAffectAcc": self.accuracy_effect()
         }
 
 
-        {
-            "Confidence": 1,
-            "ExitNumber": 1.0,
-            "ExitName": 1, 
-            "HitTime": 1,
-            "HitRateOverAll": 1,
-            "HitRate": 1,
-            "Accuracy": 1,
-            "CacheAccuracy": 1,
-            "SamplesReached": 1,
-            "BatchesReached": 1
-        }
+        # {
+        #     "Confidence": 1,
+        #     "ExitNumber": 1.0,
+        #     "ExitName": 1, 
+        #     "HitTime": 1,
+        #     "HitRateOverAll": 1,
+        #     "HitRate": 1,
+        #     "Accuracy": 1,
+        #     "CacheAccuracy": 1,
+        #     "SamplesReached": 1,
+        #     "BatchesReached": 1
+        # }

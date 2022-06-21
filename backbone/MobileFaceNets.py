@@ -106,7 +106,11 @@ class MobileFaceNet(Module):
         ]
         self.cached_layers = [3, 5, 7] #range(len(self.layers))
     
-    def forward(self, x, args, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
+    def _forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=False):
+        args = args or self.defaults["args"]
+        cache = cache or self.defaults["cache"]
+        threshold = threshold or self.defaults["threshold"]
+        return_cc = return_cc or self.defaults["return_cc"]
         cc = CacheControl(args, x.shape, threshold, self.cache_exits, training, logger = logger)
         for i in range(len(self.layers)):
             if i in self.cached_layers:
@@ -115,11 +119,59 @@ class MobileFaceNet(Module):
                 if cache:
                     out, should_exit = cc.exit(out)
                     if should_exit:
-                        return out, cc
+                        return out, cc if return_cc else None
             out = self.layers[i](out if i else x)
         cc.end_time = time.time()
-        return out, cc
+        return out, cc if return_cc else None
+
+    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=False):
+        args = args or self.defaults["args"]
+        cache = cache or self.defaults["cache"]
+        threshold = threshold or self.defaults["threshold"]
+        return_cc = return_cc or self.defaults["return_cc"]
+        if args:
+            # print("HEY!", cache)
+            cc = CacheControl(args, x.shape, threshold, getattr(self, 'cache_exits', []), training, logger = logger)
+        if cache and (not hasattr(self, 'cache_exits') or len(self.cache_exits) < len(self.cached_layers)):
+            raise Exception("Cannot cache until all cache models are set")
+        for i in range(len(self.layers)):
+            if self.layers[i] == "flatten":
+                out = torch.flatten(out, 1)
+            else:
+                out = self.layers[i](out if i else x)
+                # print(i, out.shape if i else x.shape)
+            if args and i in self.cached_layers:
+                if return_vectors:
+                    cc.vectors.append(out)
+                if cache:
+                    if logger:
+                        logger.info("CHECKING CACHE")
+                    out, should_exit = cc.exit(out)
+                    # print("CHECKED CACHE", out.size(0))
+                    if should_exit:
+                        # cc.exit(out, final=True, remaining_exits = len(self.cached_layers) - i)
+                        # print("EXITING EARLY!!!!")
+                        return out, cc if return_cc else None
+
+        if args:
+            return out, cc if return_cc else None
+        else:
+            return out
+
 
     def set_exit_models(self, models):
         self.cache_exits = ModuleList(models)
-
+    def set_defaults(self, args, cache, threshold, return_cc):
+        self.defaults = {
+            "args": args,
+            "cache": cache,
+            "threshold": threshold,
+            "return_cc": return_cc
+        }
+    def reset_defaults(self):
+        self.defaults = {
+            "args": None,
+            "cache": False,
+            "threshold": 1,
+            "return_cc": False
+        }

@@ -199,7 +199,7 @@ class ResNet(nn.Module):
                     nn.init.constant_(m.bn3.weight, 0)
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
-        self.cached_layers = [6, 7, 8, 9] #range(len(self.layers))
+        self.cached_layers = [3, 4, 5, 6] #range(len(self.layers))
         self.log_softmax = nn.LogSoftmax(dim = 1)
         self.layers = [
             self.conv1,
@@ -216,6 +216,7 @@ class ResNet(nn.Module):
             self.log_softmax
         ]
         self.cache_exits = []
+        self.reset_defaults()
           
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -259,7 +260,6 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward(self, x, args=None, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
-
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -274,34 +274,63 @@ class ResNet(nn.Module):
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)
         return x
-    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = 1, training=False, logger=None):
+
+    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=False):
+        args = args or self.defaults["args"]
+        cache = cache or self.defaults["cache"]
+        threshold = threshold or self.defaults["threshold"]
+        return_cc = return_cc or self.defaults["return_cc"]
         if args:
             cc = CacheControl(args, x.shape, threshold, getattr(self, 'cache_exits', []), training, logger = logger)
         if cache and (not hasattr(self, 'cache_exits') or len(self.cache_exits) < len(self.cached_layers)):
             raise Exception("Cannot cache until all cache models are set")
+        # print("NEW BATCH", return_cc)
         for i in range(len(self.layers)):
+            if self.layers[i] == "flatten":
+                try:
+                    out = torch.flatten(out, 1)
+                except Exception as e:
+                    print(out.shape)
+                    raise e
+            else:
+                out = self.layers[i](out if i else x)
+            
             if args and i in self.cached_layers:
                 if return_vectors:
+                    # print("Hidden SHAPE appended", out.shape)
                     cc.vectors.append(out)
                 if cache:
                     if logger:
                         logger.info("CHECKING CACHE")
+                    # print("Hidden SHAPE", out.shape)
                     out, should_exit = cc.exit(out)
                     if should_exit:
-                        # cc.exit(out, final=True)
-                        return out, cc
-            if self.layers[i] == "flatten":
-                out = torch.flatten(out, 1)
-            else:
-                out = self.layers[i](out if i else x)
+                        # cc.exit(out, final=True, remaining_exits = len(self.cached_layers) - i)
+                        return out, cc if return_cc else None
+            
+
         if args:
             cc.exit(out, final=True)
-            return out, cc
+            return out, cc if return_cc else None
         else:
             return out
 
     def set_exit_models(self, models):
         self.cache_exits = nn.ModuleList(models)
+    def set_defaults(self, args, cache, threshold, return_cc):
+        self.defaults = {
+            "args": args,
+            "cache": cache,
+            "threshold": threshold,
+            "return_cc": return_cc
+        }
+    def reset_defaults(self):
+        self.defaults = {
+            "args": None,
+            "cache": False,
+            "threshold": 1,
+            "return_cc": False
+        }
 
 
 
