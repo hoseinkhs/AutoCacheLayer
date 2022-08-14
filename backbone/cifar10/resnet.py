@@ -376,3 +376,63 @@ def resnet50(pretrained=False, progress=True, device="cpu", **kwargs):
     return _resnet(
         "resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress, device, **kwargs
     )
+
+#####################
+
+def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+        x = x.reshape(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
+
+def forward(self, x, args, cache_enabled=False, record_activations=False, training=False):
+    cc = CacheControl(args, x.shape, cache_enabled, return_vectors, training, self.cache_models)
+    x = self.conv1(x)
+    x = self.bn1(x)
+    x = self.relu(x)
+    x = self.maxpool(x)
+    x, should_exit = cc.exit(out)
+    if should_exit:
+        return cc.outputs, cc
+    x = self.layer1(x)
+    x, should_exit = cc.exit(out)
+    if should_exit:
+        return cc.outputs, cc
+    x = self.layer2(x)
+    x, should_exit = cc.exit(out)
+    if should_exit:
+        return cc.outputs, cc
+    x = self.layer3(x)
+    x, should_exit = cc.exit(out)
+    if should_exit:
+        return cc.outputs, cc
+    x = self.layer4(x)
+
+    x = self.avgpool(x)
+    x = x.reshape(x.size(0), -1)
+    x = self.fc(x)
+    return x, cc
+
+
+    def forward(self, x, args=None, cache=False, return_vectors=False, training=False):
+        cc = CacheControl(args, x.shape, threshold, self.cache_models, training)
+        for layer in self.layers:
+            x = layer(x)
+            if i in self.cached_layers:
+                x, should_exit = cc.exit(x)
+                if should_exit:
+                    cc.exit(x, final=True)
+                    return cc.ret, cc.report()
+        cc.exit(x, final=True)
+        return cc.ret, cc.report() # Returns the full array of predictions (same size as the input) along with the reports in the cache controld

@@ -4,7 +4,7 @@
 mkdir "log"
 XD=127
 BS=32
-backbone="MobileFaceNet"
+backbone="EfficientNet"
 classifier_type="Dense2Layer"
 exit_type="Dense2LayerTemp"
 exit_epoch=19

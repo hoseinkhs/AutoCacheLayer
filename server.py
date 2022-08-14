@@ -85,12 +85,14 @@ class Server():
         @app.websocket("/ws")
         async def websocket_endpoint(ws: WebSocket):
             await ws.accept()
+            
             while True:
-                try:
-                    data = json.loads(await ws.receive_text())
-                except json.decoder.JSONDecodeError as e:
-                    await ws.send_text(str(e))
-                    continue
+                await ws.receive_text()
+                # try:
+                #     data = json.loads(await ws.receive_text())
+                # except json.decoder.JSONDecodeError as e:
+                #     await ws.send_text(str(e))
+                #     continue
                 # await ws.send_text("RECEIVED")
                 count = data["count"]
                 if "action" in data and data["action"] == "update":

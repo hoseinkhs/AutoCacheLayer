@@ -230,3 +230,45 @@ def resnet152():
 
 
 
+
+
+
+
+
+
+
+
+
+
+def forward(self, x, args=None, cache=False, return_vectors=False, training=False, logger=None, return_cc=False):
+        cc = CacheControl(args, x.shape, self.cache_models, training, logger)
+        for layer in self.layers:
+            x = self.layers[i](x)
+            if i in self.cached_layers:
+                if return_vectors:
+                    cc.vectors.append(out)
+                if cache:
+                    if logger:
+                        logger.info("CHECKING CACHE")
+                    out, should_exit = cc.exit(out)
+                    # print("CHECKED CACHE", out.size(0))
+                    if should_exit:
+                        # cc.exit(out, final=True, remaining_exits = len(self.cached_layers) - i)
+                        # print("EXITING EARLY!!!!")
+                        return out, cc if return_cc else None
+
+        if args:
+            cc.exit(out, final=True)
+            return out, cc if return_cc else None
+        else:
+            return out
+
+def _forward(self, x):
+    output = self.conv1(x)
+    output = self.conv2_x(output)
+    output = self.conv3_x(output)
+    output = self.conv4_x(output)
+    output = self.conv5_x(output)
+    output = self.avg_pool(output)
+    output = output.view(output.size(0), -1)
+    output = self.fc(output)

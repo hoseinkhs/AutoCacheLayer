@@ -32,6 +32,14 @@ def test_epoch(conf, backbone, cache_model, num_exit, test_loader, device):
             pred = cache_output.argmax(dim=1, keepdim=True)
             target = target.argmax(dim=1, keepdim=True)
             correct += pred.eq(target).sum().item()
+            
+    test_loss /= len(test_loader.dataset)
+    accuracy = 100. * correct / len(test_loader.dataset)
+
+    print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
+          correct, len(test_loader.dataset), accuracy))
+
+    return accuracy
 
 def evaluate_model(exp, num_exit, device, model_cls):
     # "model_cls" is a class, need to instantiate
@@ -65,7 +73,7 @@ def evaluate_model(exp, num_exit, device, model_cls):
         lr_schedule.step()
         accuracy = test_epoch(exp.conf, backbone, cache_model, num_exit, test_loader, device)
         nni.report_intermediate_result(accuracy)
-
+    print("FINAL ACC:", accuracy)
     # report final test result
     nni.report_final_result(accuracy)
 

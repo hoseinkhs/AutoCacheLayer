@@ -1,15 +1,19 @@
 mkdir "log"
 XD=10
 BS=16
-backbone="Resnet18"
+backbone="Resnet50"
 exit_type="Dense2LayerTemp"
 exit_epoch=19
-trial="40-mem-profile"
+trial="70-flops-details"
 experiment="Cifar10"
-# --run_server \
+
 # --search_cache_models \
-# --count_flops \
+# --run_server \
+
+    # --run_meters \
+    # --count_flops \
 python train.py \
+    --run_profiler \
     --experiment "${experiment}" \
     --shrink \
     --num_classes ${XD} \
@@ -17,7 +21,7 @@ python train.py \
     --trial "${trial}" \
     --train_epochs 0 \
     --train_device "cuda:0" \
-    --test_device "cpu" \
+    --test_device "cuda:0" \
     --exit_model_path "./out_dir/${experiment}/${backbone}/exits/${exit_type}/" \
     --data_root "./data/cifar10" \
     --backbone_type "${backbone}" \

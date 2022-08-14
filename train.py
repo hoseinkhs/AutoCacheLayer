@@ -17,7 +17,7 @@ import torchvision
 import shutil
 import argparse
 import logging as logger
-
+import copy
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
@@ -28,13 +28,13 @@ import time
 import pandas as pd
 import numpy as np
 from modelwrappers import FaceModel, PlaceModel
-from aux import train_one_epoch, get_lr
+from aux import train_one_epoch, get_lr, get_n_params
 from meters import ModelMeter, ExitMeter
 from server import Server
 from fvcore.nn import FlopCountAnalysis, ActivationCountAnalysis
 from deepspeed.profiling.flops_profiler import get_model_profile
 
-
+from pytorch_memlab import MemReporter
 
 logger.basicConfig(level=logger.INFO,
                    format='%(levelname)s %(asctime)s %(filename)s: %(lineno)d] %(message)s',
@@ -61,7 +61,7 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
     cached_layers = model.backbone.cached_layers
     num_exits = len(cached_layers)
     backbone = model.backbone
-
+    print("Original #Params:", get_n_params(backbone))
     if conf.train_epochs or conf.run_server:
         cache_exits = [
             ClassifierFactory(f'{conf.exit_type}_exit_{i}', conf.exit_conf_file,
@@ -74,10 +74,13 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
                     os.path.join(conf.exit_model_path, f"Exit_{i}.pt")
             ) for i in cached_layers]
 
-    
-    backbone.set_exit_models(cache_exits)
-    model = model.to(conf.test_device)
+    nc_model = copy.deepcopy(model)
+    nc_model = nc_model.to(conf.test_device)
 
+    model.backbone.set_exit_models(cache_exits)
+    model = model.to(conf.test_device)
+    print("Cached #Params:", get_n_params(model))
+    return 
     if conf.pre_evaluate_backbone:
         total = 0
         correct = 0
@@ -128,25 +131,6 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
                                 criterion, epoch, loss_meter, conf,
                                 exit_model, num_exit, exit_layer, logger)
                 lr_schedule.step()
-
-            # if conf.fine_tune > 0:
-            #     for p in model.parameters():
-            #         p.requires_grad = True
-            #     parameters = [p for p in model.parameters() if p.requires_grad]
-            #     print("Fine tuning, num of params:", len(parameters))
-            #     optimizer = optim.SGD(parameters, lr=conf.lr * 1e-3,
-            #                           momentum=conf.momentum, weight_decay=1e-4)
-            #     lr_schedule = optim.lr_scheduler.MultiStepLR(
-            #         optimizer, milestones=conf.milestones, gamma=0.1)
-            #     loss_meter = AverageMeter()
-            #     for epoch in range(conf.fine_tune):
-            #         train_one_epoch(train_loader, model, optimizer,
-            #                         ft_criterion, epoch, loss_meter, conf,
-            #                         exit_model, num_exit, idx, logger, fine_tuning=True)
-            #         lr_schedule.step()
-            # for p in exit_model.parameters():
-            #     p.requires_grad = False
-
     print(f"Testing on {conf.test_device}, Shrink enabled: {conf.shrink}")
     model = model.to(conf.test_device)
     model.eval()
@@ -157,172 +141,161 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
     if return_artifacts:
         return model, test_data
     
-    # exits_df = pd.DataFrame(columns=["Confidence", "BatchSize", "ExitNumber", "ExitName", "HitTime",
-    #                         "HitRateOverAll", "HitRate", "Accuracy", "CacheAccuracy", "SamplesReached"])
-    # model_df = pd.DataFrame(columns=["Confidence", "BatchSize", "ResponseTime", "CachedResponseTime",
-    #                         "MTTR", "CachedMTTR", "Accuracy", "CachedAccuracy", "MTTRRatio"])
     exits_df = pd.DataFrame()
     model_df = pd.DataFrame()
-    test_confidences = [.40]#[i/100 for i in range(0, 101, 2)]#
-    batch_sizes = [1]#[1, 4, 8, 16, 32] #[args.test_batch_size] #[128]#
+    test_confidences = [1]#[i/100 for i in range(0, 101, 2)]#
+    batch_sizes = [128] #[1, 4, 8, 16, 32, 64, 128] #[1, 4, 8] #[args.test_batch_size] #[128]#[1]#
 
     if conf.test_num_threads:
         torch.set_num_threads(conf.test_num_threads)
     if conf.test_device == 'cuda:0':
         model = torch.nn.DataParallel(model)
-    # mem_A, mem_B, mem_C = 0, 0, 0
     with torch.no_grad():
-        # with torch.cuda.device(0):
-            # for images, labels in test_loader:
-            #     model.set_defaults(conf, False, 1, True)
-            #     images = images.to(conf.test_device)
-            #     flops, macs, params = get_model_profile(model=model, # model
-            #                                 # input_shape=(batch_size, 3, 224, 224), # input shape to the model. If specified, the model takes a tensor with this shape as the only positional argument.
-            #                                 args=[images], # list of positional arguments to the model.
-            #                                 # kwargs=None, # dictionary of keyword arguments to the model.
-            #                                 print_profile=False, # prints the model graph with the measured profile attached to each module
-            #                                 detailed=False, # print the detailed profile
-            #                                 module_depth=0, # depth into the nested modules, with -1 being the inner most modules
-            #                                 top_modules=0, # the number of top modules to print aggregated profile
-            #                                 warm_up=10, # the number of warm-ups before measuring the time of each module
-            #                                 as_string=True, # print raw numbers (e.g. 1000) or as human-readable strings (e.g. 1k)
-            #                                 output_file=None, # path to the output file. If None, the profiler prints to stdout.
-            #                                 ignore_modules=None)
-            #     print("=*=*=*=*=>>>>>>>>>>>", flops, macs, params)
-            #     model.set_defaults(conf, True, 0.4, True)
-            #     flops, macs, params = get_model_profile(model=model, # model
-            #                                 # input_shape=(batch_size, 3, 224, 224), # input shape to the model. If specified, the model takes a tensor with this shape as the only positional argument.
-            #                                 args=[images], # list of positional arguments to the model.
-            #                                 # kwargs=None, # dictionary of keyword arguments to the model.
-            #                                 print_profile=True, # prints the model graph with the measured profile attached to each module
-            #                                 detailed=False, # print the detailed profile
-            #                                 module_depth=-1, # depth into the nested modules, with -1 being the inner most modules
-            #                                 top_modules=1, # the number of top modules to print aggregated profile
-            #                                 warm_up=10, # the number of warm-ups before measuring the time of each module
-            #                                 as_string=True, # print raw numbers (e.g. 1000) or as human-readable strings (e.g. 1k)
-            #                                 output_file=None, # path to the output file. If None, the profiler prints to stdout.
-            #                                 ignore_modules=None)
-            #     print("=*=*=*=*=>>>>>>>>>>>", flops, macs, params)
-            #     return
-            
+        nc_mem_profile = MemReporter(nc_model)
+        mem_profile = MemReporter(model)
         for confidence in test_confidences:
+            print(f"*********** Confidence: {confidence} ********")
             for batch_size in batch_sizes:
-                mm = ModelMeter("Cached")
-                nc_mm = ModelMeter("Original")
-                ems = [ExitMeter(cached_layers[i] if i < num_exits else -1, i, mm) for i in range(num_exits + 1)]
-                test_loader = DataLoader(test_data,
-                                    batch_size, True, num_workers=0)
+                print(f"------------ Batch Size: {batch_size} ----------")
                 for rep in range(conf.repetition):
-                    batch_idx = 0
-                    for images, labels in test_loader:
-                        images = images.to(conf.test_device)
-                        model.set_defaults(conf, False, 1, True)
-                        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                                profile_memory=True) as nc_prof:
-                            nc_out, nc_results = model.forward(images, conf, cache=False, return_cc=True)
-                        
-                        # if conf.count_flops:
-                        #     nc_flops, _, _ = get_model_profile(model=model, # model
-                        #                         # input_shape=(batch_size, 3, 224, 224), # input shape to the model. If specified, the model takes a tensor with this shape as the only positional argument.
-                        #                         args=[images], # list of positional arguments to the model.
-                        #                         # kwargs=None, # dictionary of keyword arguments to the model.
-                        #                         print_profile=False, # prints the model graph with the measured profile attached to each module
-                        #                         detailed=False, # print the detailed profile
-                        #                         module_depth=-1, # depth into the nested modules, with -1 being the inner most modules
-                        #                         top_modules=1, # the number of top modules to print aggregated profile
-                        #                         warm_up=10, # the number of warm-ups before measuring the time of each module
-                        #                         as_string=False, # print raw numbers (e.g. 1000) or as human-readable strings (e.g. 1k)
-                        #                         output_file=None, # path to the output file. If None, the profiler prints to stdout.
-                        #                         ignore_modules=None)
+                    if conf.run_profiler:
+                        test_loader = DataLoader(test_data,
+                                    batch_size, False, num_workers=0, pin_memory=True)
+                        print("RUNNING NC_PROFILER")                        
+                        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as nc_prof:
+                            batch_idx = 0
+                            for images, labels in test_loader:
+                                images = images.to(conf.test_device)        
+                                nc_out, nc_results = nc_model.forward(images, conf, cache=False, return_cc=True)
+                                print(f"batch_size: {batch_size}, batch_idx: {batch_idx}", end="\r")
+                                batch_idx+=1
+                                if batch_size * batch_idx > 1:
+                                    break
+                                # break
+                        print("RUNNING CACHED_PROFILER")
+                        test_loader = DataLoader(test_data,
+                                    batch_size, False, num_workers=0, pin_memory=True)
+                        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
+                            batch_idx = 0
+                            for images, labels in test_loader:
+                                images = images.to(conf.test_device)        
+                                out, results = model.forward(images, conf, cache=True, threshold=confidence, return_cc=True)
+                                print(f"batch_size: {batch_size}, batch_idx: {batch_idx}", end="\r")
+                                batch_idx+=1
+                                if batch_size * batch_idx > 1:
+                                    break
+                        print(nc_prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=1))
+                        print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=1))
+
+                    if conf.run_meters: 
+                        batch_idx = 0
+                        test_loader = DataLoader(test_data,
+                                    batch_size, True, num_workers=0)
+                        mm = ModelMeter("Cached")
+                        nc_mm = ModelMeter("Original")
+                        ems = [ExitMeter(cached_layers[i] if i < num_exits else -1, i, mm) for i in range(num_exits + 1)]
+                        for images, labels in test_loader:
+                            images = images.to(conf.test_device)
+                            nc_model.set_defaults(conf, False, 1, True)
+                            nc_out, nc_results = nc_model.forward(images, conf, cache=False, return_cc=True)
+                            if conf.count_flops:
+                                nc_flops, _, _ = get_model_profile(model=nc_model.backbone, # model
+                                                    # input_shape=(batch_size, 3, 224, 224), # input shape to the model. If specified, the model takes a tensor with this shape as the only positional argument.
+                                                    args=[images], # list of positional arguments to the model.
+                                                    # kwargs=None, # dictionary of keyword arguments to the model.
+                                                    print_profile=True, # prints the model graph with the measured profile attached to each module
+                                                    detailed=False, # print the detailed profile
+                                                    module_depth=1, # depth into the nested modules, with -1 being the inner most modules
+                                                    top_modules=1, # the number of top modules to print aggregated profile
+                                                    warm_up=10, # the number of warm-ups before measuring the time of each module
+                                                    as_string=False, # print raw numbers (e.g. 1000) or as human-readable strings (e.g. 1k)
+                                                    output_file=None, # path to the output file. If None, the profiler prints to stdout.
+                                                    ignore_modules=None)
+                            nc_mm.batch_update(nc_out, labels, nc_results, nc_flops if conf.count_flops else 0)
+
+                            model.set_defaults(conf, True, confidence, True)
+                            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
+                                with record_function("model_inference"):
+                                    out, results = model.forward(images, conf, cache=True, threshold=confidence, return_cc=True)
+                            if conf.count_flops:
+                                flops, _, _ = get_model_profile(model=model.backbone, # model
+                                                    # input_shape=(batch_size, 3, 224, 224), # input shape to the model. If specified, the model takes a tensor with this shape as the only positional argument.
+                                                    args=[images], # list of positional arguments to the model.
+                                                    # kwargs=None, # dictionary of keyword arguments to the model.
+                                                    print_profile=True, # prints the model graph with the measured profile attached to each module
+                                                    detailed=True, # print the detailed profile
+                                                    module_depth=1, # depth into the nested modules, with -1 being the inner most modules
+                                                    top_modules=1, # the number of top modules to print aggregated profile
+                                                    warm_up=10, # the number of warm-ups before measuring the time of each module
+                                                    as_string=False, # print raw numbers (e.g. 1000) or as human-readable strings (e.g. 1k)
+                                                    output_file=None, # path to the output file. If None, the profiler prints to stdout.
+                                                    ignore_modules=None)
                             
-
-                        # nc_mm.batch_update(nc_out, labels, nc_results, nc_flops if conf.count_flops else 0)
-                        # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
-                        #     with record_function("model_inference"):
-                        #         out, results = model.forward(images, conf, cache=True, threshold=0.4, return_cc=True)
-                        # model.set_defaults(conf, True, confidence, True)
-                        # if conf.count_flops:
-                        #     flops, _, _ = get_model_profile(model=model, # model
-                        #                     # input_shape=(batch_size, 3, 224, 224), # input shape to the model. If specified, the model takes a tensor with this shape as the only positional argument.
-                        #                     args=[images], # list of positional arguments to the model.
-                        #                     # kwargs=None, # dictionary of keyword arguments to the model.
-                        #                     print_profile=False, # prints the model graph with the measured profile attached to each module
-                        #                     detailed=False, # print the detailed profile
-                        #                     module_depth=-1, # depth into the nested modules, with -1 being the inner most modules
-                        #                     top_modules=1, # the number of top modules to print aggregated profile
-                        #                     warm_up=10, # the number of warm-ups before measuring the time of each module
-                        #                     as_string=False, # print raw numbers (e.g. 1000) or as human-readable strings (e.g. 1k)
-                        #                     output_file=None, # path to the output file. If None, the profiler prints to stdout.
-                        #                     ignore_modules=None)
-                        
-                        # for i in range(num_exits + 1): 
-                        #     # print(len(results["idxs"]), i) 
-                        #     if i < len(results["idxs"]):
-                        #         ems[i].batch_update(labels, results, nc_out)
-                        
-                        # mm.batch_update(out, labels, results, flops if conf.count_flops else 0)
-                        if batch_idx == 0:
-                            break
-                        batch_idx +=1
+                            for i in range(num_exits + 1): 
+                                # print(len(results["idxs"]), i) 
+                                if i < len(results["idxs"]):
+                                    ems[i].batch_update(labels, results, nc_out)
                             
-                print(nc_prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=-1))
-                # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=-1))
-                # print(f"*********** Confidence: {confidence} ********")
-                # print(mm)    
-                # print(nc_mm)
-                # model_record = {
-                #     "Rep": rep,
-                #     "Confidence": confidence,
-                #     "BatchSize": batch_size,
-                #     "ResponseTime": round(nc_mm.time, 4),
-                #     "CachedResponseTime": round(mm.time, 4),
-                #     "MTTR": round(nc_mm.time/nc_mm.num_batch, 4),
-                #     "CachedMTTR": round(mm.samplewise_hit_time/mm.total, 4),
-                #     "Accuracy": round(100 * nc_mm.correct / nc_mm.total, 2),
-                #     "CacheAccuracy": -1 if sum([m.hit_count for m in ems][:-1]) == 0 else round(100 * sum([m.cached_correct for m in ems][:-1]) / sum([m.hit_count for m in ems][:-1]), 2),
-                #     "CachedAccuracy": round(100 * sum([m.correct for m in ems]) / mm.total, 2),
-                #     "MTTRRatio": round(100 * (mm.samplewise_hit_time)/mm.total/(nc_mm.time/mm.num_batch), 2),
-                #     "SamplesReachedEnd": ems[-1].num_sample,
-                #     "BatchesReachedEnd": ems[-1].num_batch,
-                #     "CudaTime": nc_mm.cuda_time,
-                #     "CachedCudaTime": mm.cuda_time,
-                #     # "Mem_A": mem_A,
-                #     # "Mem_B": f"{mem_B - mem_A} - {mem_B}",
-                #     # "Mem_C": f"{mem_C - mem_A} - {mem_C}"
-                # }
-                # if conf.count_flops:
-                #     model_record.update({
-                #         "Flops": nc_mm.flops,
-                #         "CachedFlops": mm.flops,
-                #         "AvgFlops": nc_mm.flops/nc_mm.total,
-                #         "AvgCachedFlops": mm.flops/mm.total,
-                #     })
-                # model_df = model_df.append(model_record, ignore_index=True)
+                            mm.batch_update(out, labels, results, flops if conf.count_flops else 0)
+                            if batch_idx == 0:
+                                break
+                            batch_idx +=1
+                
+                        print(mm)    
+                        print(nc_mm)
+                        model_record = {
+                            "Rep": rep,
+                            "Confidence": confidence,
+                            "BatchSize": batch_size,
+                            "ResponseTime": round(nc_mm.time, 4),
+                            "CachedResponseTime": round(mm.time, 4),
+                            "MTTR": round(nc_mm.time/nc_mm.num_batch, 4),
+                            "CachedMTTR": round(mm.samplewise_hit_time/mm.total, 4),
+                            "Accuracy": round(100 * nc_mm.correct / nc_mm.total, 2),
+                            "CacheAccuracy": -1 if sum([m.hit_count for m in ems][:-1]) == 0 else round(100 * sum([m.cached_correct for m in ems][:-1]) / sum([m.hit_count for m in ems][:-1]), 2),
+                            "CachedAccuracy": round(100 * sum([m.correct for m in ems]) / mm.total, 2),
+                            "MTTRRatio": round(100 * (mm.samplewise_hit_time)/mm.total/(nc_mm.time/mm.num_batch), 2),
+                            "SamplesReachedEnd": ems[-1].num_sample,
+                            "BatchesReachedEnd": ems[-1].num_batch,
+                            "CudaTime": nc_mm.cuda_time,
+                            "CachedCudaTime": mm.cuda_time,
+                            # "Mem_A": mem_A,
+                            # "Mem_B": f"{mem_B - mem_A} - {mem_B}",
+                            # "Mem_C": f"{mem_C - mem_A} - {mem_C}"
+                        }
+                        if conf.count_flops:
+                            model_record.update({
+                                "Flops": nc_mm.flops,
+                                "CachedFlops": mm.flops,
+                                "AvgFlops": nc_mm.flops/nc_mm.total,
+                                "AvgCachedFlops": mm.flops/mm.total,
+                            })
+                        model_df = model_df.append(model_record, ignore_index=True)
 
-                # # print(
-                # #     f'Models samplewise MTTR: Cached {sum(samplewise_hit_times)/total:.4f}, Non-cached: {nc_total_time/num_batch:.4f}, ratio:{100 * (sum(samplewise_hit_times)/total)/(nc_total_time/num_batch):.2f} %')
-                # for i in range(num_exits+1):
-                #     em = ems[i]
-                #     print(em)
-                #     row = em.__dict__()
-                #     row.update({
-                #         "Confidence": confidence,
-                #         "ExitNumber": i,
-                #         "BatchSize": batch_size,
-                #         "Rep": rep
-                #     })
-                #     exits_df = exits_df.append(row, ignore_index=True)
+                        # print(
+                        #     f'Models samplewise MTTR: Cached {sum(samplewise_hit_times)/total:.4f}, Non-cached: {nc_total_time/num_batch:.4f}, ratio:{100 * (sum(samplewise_hit_times)/total)/(nc_total_time/num_batch):.2f} %')
+                        for i in range(num_exits+1):
+                            em = ems[i]
+                            print(em)
+                            row = em.__dict__()
+                            row.update({
+                                "Confidence": confidence,
+                                "ExitNumber": i,
+                                "BatchSize": batch_size,
+                                "Rep": rep
+                            })
+                            exits_df = exits_df.append(row, ignore_index=True)
 
-            # for i in range(num_exits+1):
-            #     try:
-            #         print(
-            #             f'EXIT {i} | Acc: {100 * correct[i] / hit_counts[i]:.2f}%, Cache Acc: {100 * cached_correct[i] / hit_counts[i]:.2f}%, HR: {100 * hit_counts[i] / total:.2f}, Confidence: {cache_confidences[i]/num_sample_exit[i]:.3f}, out of: {total} (batch size: {conf.batch_size})')
-            #     except ZeroDivisionError:
-            #         pass
-            # exits_df.astype({c: 'int32' for c in ["ExitNumber", "ExitName", "SamplesReached"]}, copy=False).to_csv(
-            #     f"{conf.report_dir}/exits.csv", index_label="Idx")
-            # model_df.to_csv(
-            #     f"{conf.report_dir}/model.csv", index_label="Idx")
+                        # for i in range(num_exits+1):
+                        #     try:
+                        #         print(
+                        #             f'EXIT {i} | Acc: {100 * correct[i] / hit_counts[i]:.2f}%, Cache Acc: {100 * cached_correct[i] / hit_counts[i]:.2f}%, HR: {100 * hit_counts[i] / total:.2f}, Confidence: {cache_confidences[i]/num_sample_exit[i]:.3f}, out of: {total} (batch size: {conf.batch_size})')
+                        #     except ZeroDivisionError:
+                        #         pass
+                        exits_df.astype({c: 'int32' for c in ["ExitNumber", "ExitName", "SamplesReached"]}, copy=False).to_csv(
+                            f"{conf.report_dir}/exits.csv", index_label="Idx")
+                        model_df.to_csv(
+                            f"{conf.report_dir}/model.csv", index_label="Idx")
 
 
 def place_experiment(conf, return_artifacts=False):
@@ -367,8 +340,10 @@ def face_experiment(conf, return_artifacts=False):
     return experiment(conf, model,
                train_data, test_data, return_artifacts)
 
+
+
 def cifar100_experiment(conf, return_artifacts=False):
-    """Preparing face model and data for caching procedure.
+    """Preparing cifar100 model and data for caching procedure.
     """
     mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
     std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
@@ -378,9 +353,9 @@ def cifar100_experiment(conf, return_artifacts=False):
     ])
     data = torchvision.datasets.CIFAR100(root=conf.data_root, train= False, transform= transform_test, download = True)
 
-    train_data, test_data = torch.utils.data.random_split(data, [5000, 5000], generator=torch.Generator().manual_seed(42))
+    train_data, test_data = torch.utils.data.random_split(data, [7000, 3000], generator=torch.Generator().manual_seed(42))
     
-
+    
     backbone_factory = BackboneFactory(
         conf.backbone_type, conf.backbone_conf_file)
 
@@ -392,6 +367,7 @@ def cifar100_experiment(conf, return_artifacts=False):
     model.load_state_dict(torch.load(weights_file))
     test_loader = DataLoader(test_data,
                                    conf.test_batch_size, True, num_workers=0)
+    print(next(iter(test_loader))[0].shape)
     # images, labels = next(iter(test_loader))
     # tm = torchvision.models.resnet50(num_classes=100)
     # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -417,7 +393,7 @@ def cifar100_experiment(conf, return_artifacts=False):
 
 
 def cifar10_experiment(conf, return_artifacts=False):
-    """Preparing face model and data for caching procedure.
+    """Preparing cifar10 model and data for caching procedure.
     """
     data = torchvision.datasets.CIFAR10(root=conf.data_root, train= False, transform= torchvision.transforms.ToTensor(), download = True)
     train_data, test_data = torch.utils.data.random_split(data, [5000, 5000], generator=torch.Generator().manual_seed(42))
@@ -542,6 +518,10 @@ if __name__ == '__main__':
                       help='Whether shrink the batches upon cache hit.')
     conf.add_argument('--pre_evaluate_backbone', action='store_true', default=False,
                       help='Evaluate backbone\'s accuracy before proceeding')
+    conf.add_argument('--run_profiler', '-p', action='store_true', default=False,
+                      help='Whether to run flops analysis.')
+    conf.add_argument('--run_meters', '-m', action='store_true', default=False,
+                      help='Whether to run flops analysis.')
     conf.add_argument('--count_flops', '-f', action='store_true', default=False,
                       help='Whether to run flops analysis.')
     conf.add_argument('--exit_on_all_resolved', action='store_true', default=False,

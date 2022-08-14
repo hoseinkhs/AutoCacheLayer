@@ -1,7 +1,7 @@
 mkdir "log"
 XD=100
 BS=16
-backbone="Resnet18"
+backbone="Resnet50"
 exit_type="Dense2LayerTemp"
 exit_epoch=19
 trial="41-profile-mem"

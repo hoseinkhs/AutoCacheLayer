@@ -3,6 +3,15 @@ import os
 def pr(a, b, p=6):
         return round(100 * a/b, p) if a > 0 else -1
         
+def get_n_params(model):
+    pp=0
+    for p in list(model.parameters()):
+        nn=1
+        for s in list(p.size()):
+            nn = nn*s
+        pp += nn
+    return pp
+
 def get_lr(optimizer):
     """Get the current learning rate from optimizer. 
     """
