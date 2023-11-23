@@ -1,7 +1,7 @@
 import torch
 from torch import optim
 from utils.AverageMeter import AverageMeter
-import nni
+# import nni
 def train_epoch(conf, backbone, cache_model, num_exit, train_loader, optimizer, epoch, device):
     loss_fn = torch.nn.KLDivLoss(log_target=True).cuda(device)
     cache_model.train()

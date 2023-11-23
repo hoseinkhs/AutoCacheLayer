@@ -1,7 +1,4 @@
 """
-@author: Amin Abedi
-@date: 20220113
-@contact: mohammadamin.abedi@ucalgary.ca
 """
 
 from torch.nn import Linear, Module, ReLU, LogSoftmax, Softmax

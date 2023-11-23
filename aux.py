@@ -27,6 +27,7 @@ def train_one_epoch(data_loader, model, optimizer, criterion, cur_epoch, loss_me
         labels = labels.to(conf.train_device)
         item_num+=labels.shape[0]
         labels = labels.squeeze()
+        # print(type(model))
         with torch.no_grad():
             outputs, results = model.forward(images, conf, return_vectors=True, logger= logger, training=True)
         vectors = results["vectors"]

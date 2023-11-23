@@ -12,8 +12,8 @@ services:
       - 127.0.0.1:5432:5432
     environment:
       # change the password if you intend to expose postgres to other machines
-      - POSTGRES_PASSWORD=aminam
-      - POSTGRES_USER=amin
+      - POSTGRES_PASSWORD=
+      - POSTGRES_USER=
       - TIMESCALEDB_TELEMETRY=off
     volumes:
       - postgres_data:/var/lib/postgresql/data

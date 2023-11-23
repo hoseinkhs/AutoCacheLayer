@@ -1,7 +1,5 @@
 """
-@author: Amin Abedi
-@date: 20211019
-@contact: mohammadamin.abedi@ucalgary.ca
+
 """
 import sys
 # sys.path.append('../../')
@@ -30,11 +28,11 @@ import numpy as np
 from modelwrappers import FaceModel, PlaceModel
 from aux import train_one_epoch, get_lr, get_n_params
 from meters import ModelMeter, ExitMeter
-from server import Server
+# from server import Server
 from fvcore.nn import FlopCountAnalysis, ActivationCountAnalysis
-from deepspeed.profiling.flops_profiler import get_model_profile
+# from deepspeed.profiling.flops_profiler import get_model_profile
 
-from pytorch_memlab import MemReporter
+# from pytorch_memlab import MemReporter
 
 logger.basicConfig(level=logger.INFO,
                    format='%(levelname)s %(asctime)s %(filename)s: %(lineno)d] %(message)s',
@@ -42,7 +40,7 @@ logger.basicConfig(level=logger.INFO,
 
 from model_evaluator import evaluate_model
 
-import nni
+# import nni
 
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -79,8 +77,7 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
 
     model.backbone.set_exit_models(cache_exits)
     model = model.to(conf.test_device)
-    print("Cached #Params:", get_n_params(model))
-    return 
+  
     if conf.pre_evaluate_backbone:
         total = 0
         correct = 0
@@ -143,7 +140,7 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
     
     exits_df = pd.DataFrame()
     model_df = pd.DataFrame()
-    test_confidences = [1]#[i/100 for i in range(0, 101, 2)]#
+    test_confidences = [i/100 for i in range(0, 101, 2)]#
     batch_sizes = [128] #[1, 4, 8, 16, 32, 64, 128] #[1, 4, 8] #[args.test_batch_size] #[128]#[1]#
 
     if conf.test_num_threads:
@@ -151,10 +148,11 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
     if conf.test_device == 'cuda:0':
         model = torch.nn.DataParallel(model)
     with torch.no_grad():
-        nc_mem_profile = MemReporter(nc_model)
-        mem_profile = MemReporter(model)
+        # nc_mem_profile = MemReporter(nc_model)
+        # mem_profile = MemReporter(model)
         for confidence in test_confidences:
             print(f"*********** Confidence: {confidence} ********")
+            # return
             for batch_size in batch_sizes:
                 print(f"------------ Batch Size: {batch_size} ----------")
                 for rep in range(conf.repetition):
@@ -184,8 +182,8 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
                                 batch_idx+=1
                                 if batch_size * batch_idx > 1:
                                     break
-                        print(nc_prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=1))
-                        print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=1))
+                        # print(nc_prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=1))
+                        # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=1))
 
                     if conf.run_meters: 
                         batch_idx = 0
@@ -241,8 +239,8 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
                                 break
                             batch_idx +=1
                 
-                        print(mm)    
-                        print(nc_mm)
+                        # print(mm)    
+                        # print(nc_mm)
                         model_record = {
                             "Rep": rep,
                             "Confidence": confidence,
@@ -276,7 +274,7 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
                         #     f'Models samplewise MTTR: Cached {sum(samplewise_hit_times)/total:.4f}, Non-cached: {nc_total_time/num_batch:.4f}, ratio:{100 * (sum(samplewise_hit_times)/total)/(nc_total_time/num_batch):.2f} %')
                         for i in range(num_exits+1):
                             em = ems[i]
-                            print(em)
+                            # print(em)
                             row = em.__dict__()
                             row.update({
                                 "Confidence": confidence,
@@ -285,7 +283,7 @@ def experiment(conf, model, train_data, test_data, return_artifacts=False):
                                 "Rep": rep
                             })
                             exits_df = exits_df.append(row, ignore_index=True)
-
+                        print("NOW! SAVE!", conf.report_dir)
                         # for i in range(num_exits+1):
                         #     try:
                         #         print(
@@ -441,6 +439,7 @@ def cifar10_experiment(conf, return_artifacts=False):
     #             loss_meter.reset()
     #     lr_schedule.step()
     # torch.save(model.state_dict(), weights_file)
+    print(type(model))
     return experiment(conf, PlaceModel(model), 
             test_data, test_data, return_artifacts)
 

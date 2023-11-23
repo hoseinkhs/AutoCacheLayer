@@ -106,7 +106,7 @@ class MobileFaceNet(Module):
         ]
         self.cached_layers = [3, 5, 7] #range(len(self.layers))
     
-    def _forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=False):
+    def _forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=True):
         args = args or self.defaults["args"]
         cache = cache or self.defaults["cache"]
         threshold = threshold or self.defaults["threshold"]
@@ -124,7 +124,7 @@ class MobileFaceNet(Module):
         cc.end_time = time.time()
         return out, cc if return_cc else None
 
-    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=False):
+    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=True):
         args = args or self.defaults["args"]
         cache = cache or self.defaults["cache"]
         threshold = threshold or self.defaults["threshold"]

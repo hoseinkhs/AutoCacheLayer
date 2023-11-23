@@ -149,7 +149,7 @@ class ResNet(nn.Module):
         output = self.fc(output)
 
         return output
-    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=False):
+    def forward(self, x, args=None, cache=False, return_vectors=False, threshold = None, training=False, logger=None, return_cc=True):
         args = args or self.defaults["args"]
         cache = cache or self.defaults["cache"]
         threshold = threshold or self.defaults["threshold"]
@@ -240,7 +240,7 @@ def resnet152():
 
 
 
-def forward(self, x, args=None, cache=False, return_vectors=False, training=False, logger=None, return_cc=False):
+def forward(self, x, args=None, cache=False, return_vectors=False, training=False, logger=None, return_cc=True):
         cc = CacheControl(args, x.shape, self.cache_models, training, logger)
         for layer in self.layers:
             x = self.layers[i](x)

@@ -16,3 +16,5 @@ server/
 *.eps
 
 *_txt.py
+
+env/

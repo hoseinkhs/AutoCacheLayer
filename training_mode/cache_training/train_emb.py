@@ -1,7 +1,4 @@
 """
-@author: Amin Abedi
-@date: 20211019
-@contact: mohammadamin.abedi@ucalgary.ca
 """
 import sys
 sys.path.append('../../')

@@ -242,7 +242,7 @@ def _load_state_dict(arch, model, model_url, progress):
     # to find such keys.
     pattern = re.compile(
         r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
-    model_file = '/home/amin/Projects/DL/FaceX-Zoo/backbone/places365/%s_places365.pth.tar' % arch
+    model_file = '' % arch
     checkpoint = torch.load(model_file, map_location=lambda storage, loc: storage)
     state_dict = {fix(str.replace(k,'module.','')): v for k,v in checkpoint['state_dict'].items()}
     model.load_state_dict(state_dict)

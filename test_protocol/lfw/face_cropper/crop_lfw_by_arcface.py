@@ -9,7 +9,7 @@ import math
 import multiprocessing
 import cv2
 import sys
-sys.path.append('/home/amin/Projects/DL/FaceX-Zoo/face_sdk')
+sys.path.append('/Projects/DL/FaceX-Zoo/face_sdk')
 from core.image_cropper.arcface_cropper.FaceRecImageCropper import FaceRecImageCropper
 from utils.lms_trans import lms106_2_lms25
 
