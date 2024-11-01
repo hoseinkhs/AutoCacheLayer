@@ -24,11 +24,7 @@ Ensure you have the appropriate version of Python installed. If not, you can dow
    ```bash
    git clone https://github.com/hoseinkhs/AutoCacheLayer.git
    ```
-2. Navigate to the project directory:
-   ```bash
-   cd project-name
-   ```
-3. Install the required packages:
+2. Install the required packages:
    ```bash
    pip install torch>=1.1.0 torchvision>=0.3.0
    ```
